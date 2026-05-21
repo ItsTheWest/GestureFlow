@@ -1,32 +1,33 @@
 # Documentación: Paso 01 — Cámara en vivo (`paso_01_camara.py`)
 
-Describe **qué hace cada parte** del script, **cómo comprobar** que la webcam entrega frames y **si puedes pasar al siguiente paso** del plan.
+Abre la webcam, muestra vídeo en **color** con **espejo**, contador de frames y logs en consola. Solo OpenCV; sin MediaPipe.
+
+**Patrones de pasos 2 y 3** (rutas, modelo, BGR→RGB): [REFERENCIA_COMUN.md](../REFERENCIA_COMUN.md).
 
 ---
 
 ## Índice
 
 - [1. Objetivo del paso](#1-objetivo-del-paso)
-- [2. Estado respecto al plan](#2-estado-respecto-al-plan)
-- [3. Archivos de esta carpeta](#3-archivos-de-esta-carpeta)
-- [4. Pipeline](#4-pipeline)
-- [5. Importaciones y variables](#5-importaciones-y-variables)
-- [6. Bloques del código (línea por línea)](#6-bloques-del-código-línea-por-línea)
-- [7. Funciones de OpenCV](#7-funciones-de-opencv)
-- [8. Consola: qué logs verás](#8-consola-qué-logs-verás)
-- [9. Cómo ejecutar](#9-cómo-ejecutar)
-- [10. Errores frecuentes](#10-errores-frecuentes)
-- [11. ¿Puedo ir al siguiente paso?](#11-puedo-ir-al-siguiente-paso)
-- [12. Referencia del código fuente](#12-referencia-del-código-fuente)
+- [2. Archivos de esta carpeta](#2-archivos-de-esta-carpeta)
+- [3. Pipeline](#3-pipeline)
+- [4. Importaciones y variables](#4-importaciones-y-variables)
+- [5. Bloques del código](#5-bloques-del-código)
+- [6. OpenCV, teclas y ventana](#6-opencv-teclas-y-ventana)
+- [7. Consola: qué logs verás](#7-consola-qué-logs-verás)
+- [8. Cómo ejecutar](#8-cómo-ejecutar)
+- [9. Errores frecuentes](#9-errores-frecuentes)
+- [10. ¿Puedo ir al siguiente paso?](#10-puedo-ir-al-siguiente-paso)
+- [11. Referencia del código fuente](#11-referencia-del-código-fuente)
 
 ---
 
 ## 1. Objetivo del paso
 
-**Objetivo:** abrir la webcam, leer frames en bucle, mostrarlos en **color** con orientación tipo **espejo**, ver el número de frame en pantalla y **información de frames en consola**, y salir con `q` liberando la cámara.
+**Objetivo:** abrir la webcam, leer frames en bucle, mostrarlos en color con orientación tipo espejo, ver el número de frame en pantalla, registrar información en consola y salir con `q` liberando la cámara.
 
-| Incluido en este script | No incluido (pasos 3+) |
-|-------------------------|-------------------------|
+| Incluido en este script | No incluido (pasos 2 y 3) |
+|-------------------------|---------------------------|
 | `VideoCapture`, bucle `read()` | `HandLandmarker` / MediaPipe |
 | Espejo `cv2.flip(frame, 1)` | Landmarks, círculos y líneas |
 | Logs en consola + `putText` | Modo `LIVE_STREAM` |
@@ -41,23 +42,14 @@ Describe **qué hace cada parte** del script, **cómo comprobar** que la webcam 
 
 ---
 
-## 2. Estado respecto al plan
-
-| Paso del plan | ¿Cubierto? | Notas |
-|---------------|------------|--------|
-| **Paso 1** — abrir cámara y leer frames | Sí | Incluye bucle (no solo un frame con `waitKey(0)`). |
-| **Paso 2** — bucle en vivo + `q` | Sí | Mismo archivo; no hace falta duplicar en `paso-02-bucle` salvo que quieras carpeta aparte para estudiar. |
-| **Extras** — espejo, color, logs | Sí | Van más allá del plan mínimo del paso 1. |
-| **Paso 3** — MediaPipe en un frame | Pendiente | Siguiente paso recomendado. |
-
----
-
-## 3. Archivos de esta carpeta
+## 2. Archivos de esta carpeta
 
 | Archivo | Rol |
 |---------|-----|
 | `paso_01_camara.py` | Script del paso |
 | `paso_01_doc.md` | Esta documentación |
+
+**También en `pasos/`:** [REFERENCIA_COMUN.md](../REFERENCIA_COMUN.md).
 
 **Dependencias (raíz del proyecto):** `opencv-python` en `requirements.txt`, entorno `venv/`.
 
@@ -65,7 +57,7 @@ Describe **qué hace cada parte** del script, **cómo comprobar** que la webcam 
 
 ---
 
-## 4. Pipeline
+## 3. Pipeline
 
 ```text
 1. import cv2
@@ -101,11 +93,11 @@ flowchart TD
 
 ---
 
-## 5. Importaciones y variables
+## 4. Importaciones y variables
 
 ### `import cv2`
 
-OpenCV: captura, `flip`, `putText`, `imshow`, `waitKey`, liberación de recursos. Los frames están en **BGR** (3 canales). En el paso 3 convertirás a **RGB** para MediaPipe.
+OpenCV: captura, `flip`, `putText`, `imshow`, `waitKey`, liberación de recursos. Los frames están en **BGR** (3 canales). En los pasos 2 y 3 convertirás a **RGB** para MediaPipe — ver [REFERENCIA_COMUN.md §5](../REFERENCIA_COMUN.md#5-bgr--rgb-y-mpimage).
 
 ### Tabla de variables
 
@@ -119,7 +111,7 @@ OpenCV: captura, `flip`, `putText`, `imshow`, `waitKey`, liberación de recursos
 
 ---
 
-## 6. Bloques del código (línea por línea)
+## 5. Bloques del código
 
 ### Líneas 1–7 — Apertura y error fatal
 
@@ -201,7 +193,7 @@ cv2.imshow("Paso 01 - Camara", frame)
 
 Dibuja en el **mismo** `frame` en BGR y muestra una sola ventana. Color verde en BGR: `(0, 255, 0)`.
 
-**No hay** `cvtColor` a gris: el vídeo se ve a color. MediaPipe en pasos posteriores usará RGB, no escala de grises.
+**No hay** `cvtColor` a gris: el vídeo se ve a color.
 
 ---
 
@@ -228,25 +220,25 @@ Siempre se ejecuta tras salir del `while` (por `q` o por error de `read()`).
 
 ---
 
-## 7. Funciones de OpenCV
+## 6. OpenCV, teclas y ventana
 
-| Función | Uso en este paso |
-|---------|------------------|
+| Función / tecla | Uso en este paso |
+|-----------------|------------------|
 | `VideoCapture(0)` | Abrir cámara. |
 | `isOpened()` | Comprobar apertura. |
 | `read()` | Siguiente frame → `(ret, frame)`. |
 | `flip(image, 1)` | Espejo horizontal. |
 | `putText(...)` | Contador y ayuda en pantalla. |
-| `imshow(title, frame)` | Mostrar BGR en vivo. |
+| `imshow("Paso 01 - Camara", frame)` | Mostrar BGR en vivo. |
 | `waitKey(1)` | Eventos de ventana + teclado. |
-| `release()` | Liberar cámara. |
-| `destroyAllWindows()` | Cerrar ventanas. |
+| **`q`** | Salir del bucle. |
+| `release()` / `destroyAllWindows()` | Liberar cámara y ventanas. |
 
 Enlace: [Tutorial vídeo OpenCV](https://docs.opencv.org/4.x/dd/d43/tutorial_py_video_display.html)
 
 ---
 
-## 8. Consola: qué logs verás
+## 7. Consola: qué logs verás
 
 Ejemplo típico al ejecutar y pulsar `q` tras unos segundos:
 
@@ -267,7 +259,7 @@ Total frames leidos: 247
 
 ---
 
-## 9. Cómo ejecutar
+## 8. Cómo ejecutar
 
 Desde la raíz del proyecto, con `venv` activado:
 
@@ -283,7 +275,7 @@ python pasos/paso-01-camara/paso_01_camara.py
 
 ---
 
-## 10. Errores frecuentes
+## 9. Errores frecuentes
 
 | Síntoma | Qué revisar |
 |---------|-------------|
@@ -293,9 +285,11 @@ python pasos/paso-01-camara/paso_01_camara.py
 | `NameError: frame_count` | Falta inicialización antes del `while`. |
 | Cámara ocupada tras crash | Falta `release()`; en pasos futuros usar `try/finally`. |
 
+Más síntomas compartidos (pasos 2–3): [REFERENCIA_COMUN.md §9](../REFERENCIA_COMUN.md#9-errores-frecuentes-todos-los-pasos).
+
 ---
 
-## 11. ¿Puedo ir al siguiente paso?
+## 10. ¿Puedo ir al siguiente paso?
 
 **Sí**, si al ejecutar este script se cumple todo esto:
 
@@ -305,22 +299,11 @@ python pasos/paso-01-camara/paso_01_camara.py
 - [ ] Al pulsar **`q`**, ves **`Total frames leidos`** y el programa termina sin colgar.
 - [ ] (Opcional) Tras ~3 s de vídeo, aparece al menos un **`Frames OK: 100`** si no sales antes.
 
-### Qué sigue (Paso 3 del plan)
-
-Crear carpeta sugerida: `pasos/paso-03-detectar/` con un script que:
-
-1. Reutilice el bucle de cámara (o capture **un** frame con tecla).
-2. Cargue `prueba/hand_landmarker.task` con `Path`.
-3. Use `RunningMode.IMAGE` y `detect()` como en `prueba/prueba.py`.
-4. Dibuje landmarks (círculos y líneas) sobre el frame de la cámara.
-
-**Paso 2 del plan** (bucle + `q`): ya lo tienes integrado aquí; puedes **saltarlo** como carpeta nueva o copiar este script a `paso-02-bucle` solo como repaso.
-
-**No hace falta** repetir el Paso 1 salvo que quieras un script mínimo de un solo frame para comparar.
+**Siguiente:** [Paso 02 — Dibujo](../paso-02-dibujo/paso_02_doc.md) — cámara + MediaPipe modo `IMAGE` al pulsar **ESPACIO**.
 
 ---
 
-## 12. Referencia del código fuente
+## 11. Referencia del código fuente
 
 ```1:39:pasos/paso-01-camara/paso_01_camara.py
 import cv2
@@ -364,4 +347,4 @@ cap.release()
 cv2.destroyAllWindows()
 ```
 
-*Fuente de verdad: el archivo `.py` en disco.*
+*Fuente de verdad: el archivo `.py` en disco. La documentación coincide línea a línea con `paso_01_camara.py`.*
