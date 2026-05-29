@@ -1,4 +1,5 @@
 # --- Librerías ---
+from mediapipe.tasks.python.vision import hand_landmarker
 import time
 
 import cv2
@@ -70,7 +71,7 @@ def get_vowel(hand_landmarks):
     
     # 2. Lógica específica del pulgar para la letra 'A' (Pulgar apoyado al lado del índice)
     # El pulgar debe estar apuntando hacia arriba (punta más arriba que su articulación)
-    is_thumb_up = hand_landmarks[4].y < hand_landmarks[3].y
+    is_thumb_up = (hand_landmarks[4].y < hand_landmarks[3].y) and (hand_landmarks[4].y < hand_landmarks[6].y)
     
     # El pulgar NO debe cruzar los otros dedos (eso sería una 'S'). 
     # Debe estar "por fuera" del dedo índice. Comparamos la distancia en el eje X
@@ -79,11 +80,14 @@ def get_vowel(hand_landmarks):
     dist_index_to_pinky = abs(hand_landmarks[5].x - hand_landmarks[17].x)
     is_thumb_on_side = dist_thumb_to_pinky > dist_index_to_pinky
     
+
+    is_thumb_down = hand_landmarks[4].x > hand_landmarks[3].x and hand_landmarks[4].y > hand_landmarks[5].y
+
     # Regla estricta para 'A'
     if is_index_closed and is_middle_closed and is_ring_closed and is_pinky_closed and is_thumb_up and is_thumb_on_side:
         return 'A'
-    
-    return None
+    if is_index_closed and is_middle_closed and is_ring_closed and is_pinky_closed and is_thumb_down:
+        return 'E'
 
 
 if not MODEL_PATH.is_file():
