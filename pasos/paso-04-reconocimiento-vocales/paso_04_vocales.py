@@ -1,6 +1,7 @@
 # --- Librerías ---
 from mediapipe.tasks.python.vision import hand_landmarker
 import time
+import math
 
 import cv2
 import mediapipe as mp
@@ -68,6 +69,11 @@ def get_vowel(hand_landmarks):
     is_middle_closed = hand_landmarks[12].y > hand_landmarks[10].y
     is_ring_closed = hand_landmarks[16].y > hand_landmarks[14].y
     is_pinky_closed = hand_landmarks[20].y > hand_landmarks[18].y
+    is_index_semi_closed = hand_landmarks[7].y > hand_landmarks[6].y and hand_landmarks[8].y > hand_landmarks[7].y
+    is_middle_semi_closed = hand_landmarks[11].y > hand_landmarks[10].y and hand_landmarks[12].y > hand_landmarks[11].y
+    is_ring_semi_closed = hand_landmarks[15].y > hand_landmarks[14].y and hand_landmarks[16].y > hand_landmarks[15].y
+    is_pinky_semi_closed = hand_landmarks[19].y > hand_landmarks[18].y and hand_landmarks[20].y > hand_landmarks[19].y
+    
     
     # 2. Lógica específica del pulgar para la letra 'A' (Pulgar apoyado al lado del índice)
     # El pulgar debe estar apuntando hacia arriba (punta más arriba que su articulación)
@@ -78,18 +84,30 @@ def get_vowel(hand_landmarks):
     # hacia el meñique para asegurarnos de que está al lado exterior de la mano.
     dist_thumb_to_pinky = abs(hand_landmarks[4].x - hand_landmarks[17].x)
     dist_index_to_pinky = abs(hand_landmarks[5].x - hand_landmarks[17].x)
-    is_thumb_on_side = dist_thumb_to_pinky > dist_index_to_pinky
-    
+    is_thumb_on_side = dist_thumb_to_pinky > dist_index_to_pinky    
 
-    is_thumb_down = hand_landmarks[4].x > hand_landmarks[3].x and hand_landmarks[4].y > hand_landmarks[5].y
+    is_thumb_down = hand_landmarks[4].x > hand_landmarks[3].x 
 
     # Regla estricta para 'A'
     if is_index_closed and is_middle_closed and is_ring_closed and is_pinky_closed and is_thumb_up and is_thumb_on_side:
         return 'A'
     if is_index_closed and is_middle_closed and is_ring_closed and is_pinky_closed and is_thumb_down:
         return 'E'
+    if  is_index_closed and is_middle_closed and is_ring_closed and not is_pinky_closed and is_thumb_up:
+        return 'I'
+    if not is_index_closed and not is_middle_closed and is_ring_closed and is_pinky_closed and is_thumb_down:
+        return 'U'
+        
+    # Logic for 'O': Tips of the index and middle fingers touch the thumb
+    def get_distance(lm1, lm2):
+        return math.sqrt((lm1.x - lm2.x)**2 + (lm1.y - lm2.y)**2)
+        
+    dist_thumb_index = get_distance(hand_landmarks[4], hand_landmarks[8])
+    dist_thumb_middle = get_distance(hand_landmarks[4], hand_landmarks[12])
+    are_tips_touching = dist_thumb_index < 0.05 and dist_thumb_middle < 0.05
 
-
+    if are_tips_touching and is_ring_semi_closed and is_pinky_semi_closed:
+        return 'O'
 if not MODEL_PATH.is_file():
     raise FileNotFoundError(f"No se encontro el modelo: {MODEL_PATH}")
 
