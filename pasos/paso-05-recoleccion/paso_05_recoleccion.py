@@ -41,3 +41,55 @@ def build_landmarker() -> vision.HandLandmarker:
         num_hands=1,
     )
     return vision.HandLandmarker.create_from_options(options)
+
+
+# ---------------------------------------------------------------------------
+# Step 2.2 — Keypoint extraction helper
+# ---------------------------------------------------------------------------
+def extract_keypoints(results: vision.HandLandmarkerResult) -> np.ndarray:
+    """
+    Flatten the landmarks of the first detected hand into a 1-D array of 63 values.
+
+    Returns:
+        np.ndarray of shape (63,): [x0, y0, z0, x1, y1, z1, ..., x20, y20, z20]
+        or np.zeros(63) when no hand is detected — keeping data shape consistent.
+    """
+    if results.hand_landmarks:
+        # Only use the first hand detected (index 0)
+        hand = results.hand_landmarks[0]
+        # Build a flat list: x, y, z for each of the 21 landmarks
+        keypoints = []
+        for landmark in hand:
+            keypoints.extend([landmark.x, landmark.y, landmark.z])
+        return np.array(keypoints, dtype=np.float32)   # shape: (63,)
+    else:
+        # No hand visible → return zeros so every frame stays shape (63,)
+        return np.zeros(NUM_FEATURES, dtype=np.float32)
+
+
+# ---------------------------------------------------------------------------
+# Step 2.3 (helper) — Overlay text on frame for user guidance
+# ---------------------------------------------------------------------------
+def draw_hud(frame: np.ndarray, gesture: str, sequence: int, frame_num: int, waiting: bool) -> None:
+    """Render recording state info directly onto the camera feed."""
+    h = frame.shape[0]
+    color_accent = (0, 255, 200)
+    color_warn   = (0, 200, 255)
+    color_label  = (255, 255, 255)
+
+    # Gesture name at the top
+    cv2.putText(frame, f"Gesto: {gesture.upper()}", (10, 35),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.9, color_label, 2)
+
+    # Sequence / total counter
+    cv2.putText(frame, f"Secuencia {sequence + 1}/{NUM_SEQUENCES}", (10, 70),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.75, color_accent, 2)
+
+    if waiting:
+        # Pause state: ask user to get ready
+        cv2.putText(frame, "PREPARATE...", (10, h - 20),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, color_warn, 3)
+    else:
+        # Active recording state: show frame progress
+        cv2.putText(frame, f"Grabando frame {frame_num + 1}/{SEQUENCE_LENGTH}", (10, h - 20),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.75, color_accent, 2)
