@@ -93,3 +93,145 @@ def draw_hud(frame: np.ndarray, gesture: str, sequence: int, frame_num: int, wai
         # Active recording state: show frame progress
         cv2.putText(frame, f"Grabando frame {frame_num + 1}/{SEQUENCE_LENGTH}", (10, h - 20),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.75, color_accent, 2)
+
+
+# ---------------------------------------------------------------------------
+# Folder creation — Step 1 of the workflow
+# ---------------------------------------------------------------------------
+def pedir_nombre_gesto() -> str | None:
+    """
+    Ask the user for a gesture name, create the output folder, and return the
+    normalized name. Returns None if folder creation fails.
+    """
+    raw_name = input("Nombre del gesto a grabar: ")
+    normalized = raw_name.strip().lower()
+
+    if not normalized:
+        print("Error: El nombre no puede estar vacío.")
+        return None
+
+    gesture_folder = PROJECT_ROOT / "gestos" / normalized
+    gesture_folder.mkdir(parents=True, exist_ok=True)
+
+    if not gesture_folder.exists():
+        print(f"Error: No se pudo crear la carpeta: {gesture_folder}")
+        return None
+
+    print(f"Carpeta lista en: {gesture_folder}")
+    return normalized
+
+
+# ---------------------------------------------------------------------------
+# Step 2.3 + 2.4 — Main recording loop
+# ---------------------------------------------------------------------------
+def grabar_gesto(gesture_name: str, landmarker: vision.HandLandmarker) -> None:
+    """
+    Record NUM_SEQUENCES sequences of SEQUENCE_LENGTH frames each, extract
+    keypoints per frame, and save every sequence as a .npy file.
+
+    File naming convention: gestos/<gesture>/<sequence_index>.npy
+    """
+    output_dir = PROJECT_ROOT / "gestos" / gesture_name
+
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("Error: No se pudo abrir la cámara.")
+        return
+
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+    print(f"\nIniciando grabación para el gesto '{gesture_name}'")
+    print(f"  · Secuencias: {NUM_SEQUENCES}")
+    print(f"  · Frames por secuencia: {SEQUENCE_LENGTH}")
+    print("  · Presiona Q en cualquier momento para cancelar.\n")
+
+    # -----------------------------------------------------------------------
+    # Outer loop — one iteration = one full recorded sequence
+    # -----------------------------------------------------------------------
+    for sequence in range(NUM_SEQUENCES):
+        sequence_data = []   # Temporary list — will hold SEQUENCE_LENGTH arrays of shape (63,)
+
+        # -------------------------------------------------------------------
+        # Inner loop — one iteration = one captured frame
+        # -------------------------------------------------------------------
+        for frame_num in range(SEQUENCE_LENGTH):
+
+            ret, frame = cap.read()
+            if not ret:
+                print("Error: No se pudo leer el frame de la cámara.")
+                break
+
+            # Mirror the image so the user sees their hand correctly
+            frame = cv2.flip(frame, 1)
+
+            # UX: At the very first frame of each sequence, pause 2 seconds
+            # so the user has time to reposition their hand.
+            is_waiting = (frame_num == 0)
+            if is_waiting:
+                draw_hud(frame, gesture_name, sequence, frame_num, waiting=True)
+                cv2.imshow("GestureFlow - Recolección de Datos", frame)
+                # 2-second pause; still allow Q to quit
+                if cv2.waitKey(2000) & 0xFF == ord("q"):
+                    print("\nGrabación cancelada por el usuario.")
+                    cap.release()
+                    cv2.destroyAllWindows()
+                    return
+                # Re-read so the displayed frame after the pause is fresh
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                frame = cv2.flip(frame, 1)
+
+            # ---------------------------------------------------------------
+            # Convert BGR → RGB and wrap in mp.Image for synchronous detection
+            # ---------------------------------------------------------------
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            mp_image  = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+
+            # Synchronous call — blocks until MediaPipe returns the result
+            results = landmarker.detect(mp_image)
+
+            # Extract the 63 keypoints (zeros if no hand found)
+            keypoints = extract_keypoints(results)
+            sequence_data.append(keypoints)
+
+            # Display recording progress to the user
+            draw_hud(frame, gesture_name, sequence, frame_num, waiting=False)
+            cv2.imshow("GestureFlow - Recolección de Datos", frame)
+
+            # 1 ms wait to process UI events; allow early quit with Q
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                print("\nGrabación cancelada por el usuario.")
+                cap.release()
+                cv2.destroyAllWindows()
+                return
+
+        # -------------------------------------------------------------------
+        # Step 2.4 — Save the completed sequence as a .npy file
+        # -------------------------------------------------------------------
+        # sequence_data is a list of SEQUENCE_LENGTH arrays, each of shape (63,)
+        # np.array() converts it to shape (SEQUENCE_LENGTH, NUM_FEATURES) = (30, 63)
+        npy_array = np.array(sequence_data, dtype=np.float32)   # shape: (30, 63)
+        save_path = output_dir / f"{sequence}.npy"
+        np.save(str(save_path), npy_array)
+        print(f"  [✓] Secuencia {sequence + 1:02d}/{NUM_SEQUENCES} guardada → {save_path.name}  shape={npy_array.shape}")
+
+    cap.release()
+    cv2.destroyAllWindows()
+    print(f"\n✅ Recolección completa. {NUM_SEQUENCES} secuencias guardadas en: {output_dir}")
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+if __name__ == "__main__":
+    # Step 1: Ask for gesture name and create output folder
+    gesto_creado = pedir_nombre_gesto()
+    if not gesto_creado:
+        exit(1)
+
+    # Step 2: Build the MediaPipe landmarker (IMAGE mode)
+    with build_landmarker() as landmarker:
+        # Step 3: Run the double recording loop
+        grabar_gesto(gesto_creado, landmarker)
