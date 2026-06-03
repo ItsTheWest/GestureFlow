@@ -1,6 +1,7 @@
 import cv2
 import mediapipe as mp
 import numpy as np
+import time
 from pathlib import Path
 from collections import deque
 from mediapipe.tasks import python
@@ -16,12 +17,20 @@ MODEL_PATH   = PROJECT_ROOT / "prueba" / "hand_landmarker.task"
 # ---------------------------------------------------------------------------
 # Parámetros de grabación
 # ---------------------------------------------------------------------------
-SEQUENCE_LENGTH = 30   # Frames que componen una secuencia de gesto (~1 segundo a 30 fps)
-NUM_FEATURES    = 63   # 21 puntos clave de la mano × 3 coordenadas (x, y, z)
-NUM_SEQUENCES   = 30   # Cuántos ejemplos recolectamos por gesto
+SEQUENCE_LENGTH  = 30   # Frames que componen una secuencia (~1 segundo a 30 fps)
+NUM_FEATURES     = 63   # 21 puntos clave de la mano × 3 coordenadas (x, y, z)
+NUM_SEQUENCES    = 30   # Cuántos ejemplos recolectamos por gesto
 
-# Duración del mensaje flash en frames (~1.5 s a 30 fps)
-FLASH_DURATION  = 45
+# Cada cuántos frames guardamos una secuencia automáticamente.
+# Con SEQUENCE_LENGTH=30 y SAVE_EVERY=15 hay un solapamiento del 50%:
+# eso genera mayor diversidad en los datos de entrenamiento.
+SAVE_EVERY       = 15
+
+# Segundos de cuenta regresiva antes de iniciar la grabación automática
+COUNTDOWN_SECS   = 3
+
+# Frames que dura el destello de confirmación en el HUD (~0.5 s a 30 fps)
+FLASH_DURATION   = 15
 
 
 # ---------------------------------------------------------------------------
@@ -62,35 +71,67 @@ def extract_keypoints(results: vision.HandLandmarkerResult) -> np.ndarray:
             keypoints.extend([lm.x, lm.y, lm.z])
         return np.array(keypoints, dtype=np.float32)   # forma: (63,)
     else:
-        # No hay mano visible → devolvemos ceros para que cada frame mantenga forma (63,)
+        # No hay mano visible → devolvemos ceros para mantener forma constante (63,)
         return np.zeros(NUM_FEATURES, dtype=np.float32)
 
 
 # ---------------------------------------------------------------------------
-# Paso 3 — Renderizado del HUD (modo continuo)
+# Paso 3 — Renderizado del HUD en fase de cuenta regresiva
+# ---------------------------------------------------------------------------
+def draw_countdown(frame: np.ndarray, gesture: str, seconds_left: int) -> None:
+    """Muestra el nombre del gesto y el número de cuenta regresiva centrado en pantalla."""
+    h, w = frame.shape[:2]
+
+    # Fondo semitransparente para legibilidad
+    overlay = frame.copy()
+    cv2.rectangle(overlay, (0, 0), (w, h), (0, 0, 0), -1)
+    cv2.addWeighted(overlay, 0.45, frame, 0.55, 0, frame)
+
+    # Nombre del gesto
+    cv2.putText(frame, f"Gesto: {gesture.upper()}", (10, 40),
+                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+
+    # Número grande centrado
+    label = str(seconds_left)
+    (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 6.0, 8)
+    cx, cy = (w - tw) // 2, (h + th) // 2
+    cv2.putText(frame, label, (cx, cy),
+                cv2.FONT_HERSHEY_SIMPLEX, 6.0, (0, 255, 200), 8)
+
+    # Instrucción inferior
+    cv2.putText(frame, "Prepara el gesto...", (10, h - 20),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.75, (180, 180, 180), 2)
+
+
+# ---------------------------------------------------------------------------
+# Paso 4 — Renderizado del HUD en fase de grabación automática
 # ---------------------------------------------------------------------------
 def draw_hud(
     frame: np.ndarray,
     gesture: str,
     saved: int,
     buffer_len: int,
-    flash_msg: str | None,
+    frame_counter: int,
+    hand_detected: bool,
+    flash_timer: int,
 ) -> None:
     """
-    Superpone el estado de la grabación directamente sobre el frame de la cámara.
+    Muestra el estado de la grabación automática sobre el frame de la cámara.
 
-    Disposición:
-      Arriba  — nombre del gesto + contador de secuencias guardadas
-      Abajo   — barra de progreso del buffer + instrucción o mensaje flash
+    Elementos:
+      · Nombre del gesto y contador de secuencias guardadas (arriba)
+      · Indicador de mano detectada
+      · Barra de buffer rodante con marcador de próximo guardado automático
+      · Flash de confirmación al guardar
     """
     h, w = frame.shape[:2]
 
-    COLOR_BLANCO  = (255, 255, 255)
-    COLOR_CIAN    = (0, 255, 200)    # Relleno de la barra y texto de progreso
-    COLOR_FLASH   = (80, 255, 80)    # Verde brillante para confirmación de guardado
-    COLOR_AVISO   = (0, 165, 255)    # Naranja para advertencia de buffer incompleto
-    COLOR_TENUE   = (140, 140, 140)  # Gris para la instrucción en reposo
-    COLOR_FONDO   = (50, 50, 50)     # Fondo oscuro de la pista de la barra
+    COLOR_BLANCO = (255, 255, 255)
+    COLOR_CIAN   = (0, 255, 200)
+    COLOR_VERDE  = (80, 255, 80)
+    COLOR_ROJO   = (80, 80, 255)
+    COLOR_TENUE  = (140, 140, 140)
+    COLOR_FONDO  = (50, 50, 50)
 
     # --- Sección superior ----------------------------------------------------
     cv2.putText(frame, f"Gesto: {gesture.upper()}", (10, 35),
@@ -99,73 +140,97 @@ def draw_hud(
     cv2.putText(frame, f"Guardadas: {saved}/{NUM_SEQUENCES}", (10, 70),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.75, COLOR_CIAN, 2)
 
-    # --- Barra de progreso del buffer rodante --------------------------------
-    # Pista de fondo
+    # Indicador de detección de mano
+    hand_label = "Mano detectada ✓" if hand_detected else "Sin mano — muestrate en camara"
+    hand_color = COLOR_VERDE if hand_detected else COLOR_ROJO
+    cv2.putText(frame, hand_label, (10, 105),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, hand_color, 2)
+
+    # --- Barra de buffer rodante ---------------------------------------------
     BAR_TOP, BAR_BOT = h - 65, h - 45
     cv2.rectangle(frame, (10, BAR_TOP), (w - 10, BAR_BOT), COLOR_FONDO, -1)
 
-    # Relleno proporcional al contenido actual del buffer
+    # Relleno proporcional al contenido del buffer
     fill_w = int((buffer_len / SEQUENCE_LENGTH) * (w - 20))
     if fill_w > 0:
         cv2.rectangle(frame, (10, BAR_TOP), (10 + fill_w, BAR_BOT), COLOR_CIAN, -1)
 
-    # Etiqueta de porcentaje sobre la barra
+    # Marcador vertical que indica cuándo ocurrirá el próximo guardado automático
+    if buffer_len == SEQUENCE_LENGTH:
+        # Calculamos la posición relativa dentro del ciclo SAVE_EVERY
+        progress_in_cycle = (frame_counter % SAVE_EVERY) / SAVE_EVERY
+        marker_x = 10 + int(progress_in_cycle * (w - 20))
+        cv2.line(frame, (marker_x, BAR_TOP - 5), (marker_x, BAR_BOT + 5), (255, 255, 0), 2)
+
     pct = int(buffer_len / SEQUENCE_LENGTH * 100)
     cv2.putText(frame, f"Buffer: {pct}%", (10, BAR_TOP - 5),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLOR_TENUE, 1)
 
-    # --- Línea inferior — mensaje flash o instrucción permanente -------------
-    if flash_msg:
-        # El color depende del tipo de mensaje: éxito o advertencia
-        color = COLOR_FLASH if "Guardado" in flash_msg else COLOR_AVISO
-        cv2.putText(frame, flash_msg, (10, h - 15),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
+    # --- Línea inferior — flash o instrucción --------------------------------
+    if flash_timer > 0:
+        cv2.putText(frame, f"¡Guardado automaticamente! ({saved}/{NUM_SEQUENCES})",
+                    (10, h - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.7, COLOR_VERDE, 2)
     else:
-        cv2.putText(frame, "ESPACIO: guardar ultimo gesto  |  Q: salir", (10, h - 15),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR_TENUE, 1)
+        cv2.putText(frame, "Grabacion automatica activa  |  Q: salir",
+                    (10, h - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR_TENUE, 1)
 
 
 # ---------------------------------------------------------------------------
-# Paso 4 — Creación de la carpeta de salida
+# Paso 5 — Creación de la carpeta de salida con soporte de reanudación
 # ---------------------------------------------------------------------------
-def pedir_nombre_gesto() -> str | None:
+def pedir_nombre_gesto() -> tuple[str, int] | tuple[None, None]:
     """
-    Solicita al usuario el nombre del gesto, crea la carpeta de salida y retorna
-    el nombre normalizado. Retorna None si la carpeta no se pudo crear.
+    Solicita el nombre del gesto, crea la carpeta y detecta cuántas secuencias
+    ya existen para reanudar desde el índice correcto sin sobrescribir datos previos.
+
+    Retorna:
+        (nombre_normalizado, próximo_índice) o (None, None) si hay error.
     """
     raw_name   = input("Nombre del gesto a grabar: ")
-    normalized = raw_name.strip().lower()   # Eliminamos espacios y convertimos a minúsculas
+    normalized = raw_name.strip().lower()
 
     if not normalized:
         print("Error: El nombre no puede estar vacío.")
-        return None
+        return None, None
 
     gesture_folder = PROJECT_ROOT / "gestos" / normalized
-    gesture_folder.mkdir(parents=True, exist_ok=True)   # Crea carpetas intermedias sin error
+    gesture_folder.mkdir(parents=True, exist_ok=True)
 
     if not gesture_folder.exists():
         print(f"Error: No se pudo crear la carpeta: {gesture_folder}")
-        return None
+        return None, None
 
-    print(f"Carpeta lista en: {gesture_folder}")
-    return normalized
+    # Detectamos el índice de reanudación contando archivos .npy existentes
+    existing = sorted(gesture_folder.glob("*.npy"))
+    next_index = len(existing)
+
+    if next_index > 0:
+        print(f"Carpeta existente: {gesture_folder}")
+        print(f"  → Se encontraron {next_index} secuencias ya guardadas. Continuando desde {next_index}.npy")
+    else:
+        print(f"Carpeta lista en: {gesture_folder}")
+
+    return normalized, next_index
 
 
 # ---------------------------------------------------------------------------
-# Paso 5 — Bucle principal de grabación (deque continuo + disparador ESPACIO)
+# Paso 6 — Bucle principal: cuenta regresiva + grabación automática
 # ---------------------------------------------------------------------------
-def grabar_gesto(gesture_name: str, landmarker: vision.HandLandmarker) -> None:
+def grabar_gesto(gesture_name: str, start_index: int, landmarker: vision.HandLandmarker) -> None:
     """
-    Lee frames de la cámara de forma continua y los acumula en un buffer rodante (deque).
-    Cada frame es procesado por MediaPipe y sus 63 puntos clave se agregan al buffer;
-    el frame más antiguo se descarta automáticamente cuando el buffer está lleno.
-
-    Al presionar ESPACIO, el contenido actual del buffer (últimos SEQUENCE_LENGTH frames)
-    se guarda como archivo .npy, sin interrumpir el flujo de la cámara.
+    Fase 1 — Cuenta regresiva: muestra 3-2-1 para que el usuario se prepare.
+    Fase 2 — Grabación automática: el buffer rodante guarda una secuencia cada
+              SAVE_EVERY frames cuando hay una mano detectada, sin intervención del usuario.
 
     Convención de nombres: gestos/<gesto>/<índice_secuencia>.npy
     """
-    output_dir = PROJECT_ROOT / "gestos" / gesture_name
+    output_dir       = PROJECT_ROOT / "gestos" / gesture_name
+    sequences_saved  = start_index        # Reanudamos desde donde quedamos
+    sequences_needed = NUM_SEQUENCES - start_index
+
+    if sequences_needed <= 0:
+        print(f"✅ El gesto '{gesture_name}' ya tiene {NUM_SEQUENCES} secuencias completas.")
+        return
 
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
@@ -175,18 +240,37 @@ def grabar_gesto(gesture_name: str, landmarker: vision.HandLandmarker) -> None:
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-    print(f"\nIniciando grabación continua para '{gesture_name}'")
-    print(f"  · Realiza el gesto libremente frente a la cámara")
-    print(f"  · Cuando el gesto esté completo, presiona ESPACIO para guardar los últimos {SEQUENCE_LENGTH} frames")
-    print(f"  · Repite hasta completar {NUM_SEQUENCES} secuencias")
+    print(f"\nIniciando grabación automática para '{gesture_name}'")
+    print(f"  · Faltan {sequences_needed} secuencias para completar {NUM_SEQUENCES}")
+    print(f"  · Muestra el gesto frente a la cámara durante la grabación")
     print("  · Presiona Q en cualquier momento para cancelar.\n")
 
-    # Buffer rodante: descarta automáticamente el frame más antiguo cuando está lleno
+    # -----------------------------------------------------------------------
+    # Fase 1 — Cuenta regresiva
+    # -----------------------------------------------------------------------
+    for i in range(COUNTDOWN_SECS, 0, -1):
+        deadline = time.time() + 1.0           # Cada número dura exactamente 1 segundo
+        while time.time() < deadline:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            frame = cv2.flip(frame, 1)
+            draw_countdown(frame, gesture_name, i)
+            cv2.imshow("GestureFlow - Recolección Automática", frame)
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                cap.release()
+                cv2.destroyAllWindows()
+                print("\nCancelado durante la cuenta regresiva.")
+                return
+
+    # -----------------------------------------------------------------------
+    # Fase 2 — Grabación automática con buffer rodante
+    # -----------------------------------------------------------------------
+    # deque(maxlen=30): al agregar el frame 31, el frame 0 se descarta automáticamente
     buffer: deque[np.ndarray] = deque(maxlen=SEQUENCE_LENGTH)
 
-    sequences_saved = 0
-    flash_msg: str | None = None
-    flash_timer: int = 0
+    frame_counter = 0    # Contador global de frames para el ciclo SAVE_EVERY
+    flash_timer   = 0    # Frames restantes de destello de confirmación
 
     while sequences_saved < NUM_SEQUENCES:
         ret, frame = cap.read()
@@ -194,53 +278,46 @@ def grabar_gesto(gesture_name: str, landmarker: vision.HandLandmarker) -> None:
             print("Error: No se pudo leer el frame de la cámara.")
             break
 
-        # Espejamos la imagen para que el usuario vea su mano de forma natural
         frame = cv2.flip(frame, 1)
 
         # --- Inferencia de MediaPipe (síncrona) ------------------------------
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        mp_image  = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
-        results   = landmarker.detect(mp_image)
+        rgb_frame    = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        mp_image     = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+        results      = landmarker.detect(mp_image)
+        hand_visible = bool(results.hand_landmarks)
 
-        # Agregamos el vector de 63 puntos clave al buffer rodante
+        # Agregamos el vector de 63 puntos al buffer rodante
         keypoints = extract_keypoints(results)
         buffer.append(keypoints)
+        frame_counter += 1
 
-        # --- Cuenta regresiva del mensaje flash ------------------------------
+        # --- Guardado automático ---------------------------------------------
+        # Condiciones: buffer lleno + mano visible + se cumple el ciclo SAVE_EVERY
+        if (len(buffer) == SEQUENCE_LENGTH
+                and hand_visible
+                and frame_counter % SAVE_EVERY == 0):
+
+            npy_array = np.array(buffer, dtype=np.float32)   # forma: (30, 63)
+            save_path = output_dir / f"{sequences_saved}.npy"
+            np.save(str(save_path), npy_array)
+
+            sequences_saved += 1
+            flash_timer = FLASH_DURATION
+            print(f"  [✓] Secuencia {sequences_saved:02d}/{NUM_SEQUENCES} guardada → {save_path.name}")
+
+        # --- Cuenta regresiva del flash --------------------------------------
         if flash_timer > 0:
             flash_timer -= 1
-        else:
-            flash_msg = None   # Limpiamos el flash al expirar el temporizador
 
         # --- HUD y visualización ---------------------------------------------
-        draw_hud(frame, gesture_name, sequences_saved, len(buffer), flash_msg)
-        cv2.imshow("GestureFlow - Recolección Continua", frame)
+        draw_hud(frame, gesture_name, sequences_saved,
+                 len(buffer), frame_counter, hand_visible, flash_timer)
+        cv2.imshow("GestureFlow - Recolección Automática", frame)
 
-        # --- Manejo de teclas ------------------------------------------------
-        key = cv2.waitKey(1) & 0xFF
-
-        if key == ord("q"):
+        # Procesamos eventos de UI; Q cancela en cualquier momento
+        if cv2.waitKey(1) & 0xFF == ord("q"):
             print("\nGrabación cancelada por el usuario.")
             break
-
-        if key == ord(" "):
-            if len(buffer) == SEQUENCE_LENGTH:
-                # Guardamos una instantánea del buffer rodante actual
-                npy_array = np.array(buffer, dtype=np.float32)   # forma: (30, 63)
-                save_path = output_dir / f"{sequences_saved}.npy"
-                np.save(str(save_path), npy_array)
-
-                sequences_saved += 1
-                print(f"  [✓] Secuencia {sequences_saved:02d}/{NUM_SEQUENCES} guardada → {save_path.name}  forma={npy_array.shape}")
-
-                # Activamos el flash verde de confirmación en el HUD
-                flash_msg   = f"¡Guardado! ({sequences_saved}/{NUM_SEQUENCES})"
-                flash_timer = FLASH_DURATION
-
-            else:
-                # El buffer aún no está lleno (primer segundo de grabación)
-                flash_msg   = f"Buffer incompleto: {len(buffer)}/{SEQUENCE_LENGTH} frames — espera un momento"
-                flash_timer = FLASH_DURATION
 
     cap.release()
     cv2.destroyAllWindows()
@@ -255,12 +332,12 @@ def grabar_gesto(gesture_name: str, landmarker: vision.HandLandmarker) -> None:
 # Punto de entrada
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    # Paso 1: Pedimos el nombre del gesto y creamos la carpeta de salida
-    gesto_creado = pedir_nombre_gesto()
-    if not gesto_creado:
+    # Paso 1: Pedimos el nombre y detectamos el índice de reanudación
+    gesto_creado, next_index = pedir_nombre_gesto()
+    if gesto_creado is None:
         exit(1)
 
     # Paso 2: Construimos el HandLandmarker de MediaPipe (modo IMAGE)
     with build_landmarker() as landmarker:
-        # Paso 3: Ejecutamos el bucle de captura continua
-        grabar_gesto(gesto_creado, landmarker)
+        # Paso 3: Cuenta regresiva + grabación automática
+        grabar_gesto(gesto_creado, next_index, landmarker)
