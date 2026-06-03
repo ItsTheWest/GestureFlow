@@ -2,32 +2,33 @@ import cv2
 import mediapipe as mp
 import numpy as np
 from pathlib import Path
+from collections import deque
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
 # ---------------------------------------------------------------------------
-# Resolución de rutas — mismo patrón que paso_04_vocales.py
+# Resolución de rutas — mismo patrón que los pasos anteriores
 # ---------------------------------------------------------------------------
-SCRIPT_DIR = Path(__file__).resolve().parent
+SCRIPT_DIR   = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent.parent
-MODEL_PATH = PROJECT_ROOT / "prueba" / "hand_landmarker.task"
+MODEL_PATH   = PROJECT_ROOT / "prueba" / "hand_landmarker.task"
 
 # ---------------------------------------------------------------------------
 # Parámetros de grabación
 # ---------------------------------------------------------------------------
-SEQUENCE_LENGTH = 30   # Número de frames que componen una sola secuencia de movimiento
-NUM_FEATURES   = 63    # 21 puntos clave de la mano * 3 coordenadas (x, y, z)
-NUM_SEQUENCES  = 30    # Cuántas secuencias de ejemplo grabaremos por gesto
+SEQUENCE_LENGTH = 30   # Frames que componen una secuencia de gesto (~1 segundo a 30 fps)
+NUM_FEATURES    = 63   # 21 puntos clave de la mano × 3 coordenadas (x, y, z)
+NUM_SEQUENCES   = 30   # Cuántos ejemplos recolectamos por gesto
+
+# Duración del mensaje flash en frames (~1.5 s a 30 fps)
+FLASH_DURATION  = 45
 
 
 # ---------------------------------------------------------------------------
-# Paso 2.1 — Configuración de MediaPipe (modo IMAGE para procesamiento síncrono)
+# Paso 1 — Configuración de MediaPipe (modo IMAGE = síncrono, sin callback)
 # ---------------------------------------------------------------------------
-# Usamos RunningMode.IMAGE en lugar de LIVE_STREAM para que cada llamada a detect()
-# bloquee hasta que MediaPipe devuelva el resultado. Esto garantiza que capturamos
-# exactamente SEQUENCE_LENGTH frames sin que ninguno se pierda de forma asíncrona.
 def build_landmarker() -> vision.HandLandmarker:
-    """Crea y devuelve un HandLandmarker configurado en modo IMAGE (síncrono)."""
+    """Crea y devuelve un HandLandmarker configurado en modo IMAGE síncrono."""
     if not MODEL_PATH.is_file():
         raise FileNotFoundError(
             f"Modelo no encontrado en: {MODEL_PATH}\n"
@@ -37,14 +38,14 @@ def build_landmarker() -> vision.HandLandmarker:
     base_options = python.BaseOptions(model_asset_path=str(MODEL_PATH))
     options = vision.HandLandmarkerOptions(
         base_options=base_options,
-        running_mode=vision.RunningMode.IMAGE,  # Síncrono — no se necesita callback
+        running_mode=vision.RunningMode.IMAGE,  # Síncrono — bloquea hasta recibir el resultado
         num_hands=1,
     )
     return vision.HandLandmarker.create_from_options(options)
 
 
 # ---------------------------------------------------------------------------
-# Paso 2.2 — Función auxiliar de extracción de puntos clave
+# Paso 2 — Función auxiliar de extracción de puntos clave
 # ---------------------------------------------------------------------------
 def extract_keypoints(results: vision.HandLandmarkerResult) -> np.ndarray:
     """
@@ -52,68 +53,95 @@ def extract_keypoints(results: vision.HandLandmarkerResult) -> np.ndarray:
 
     Retorna:
         np.ndarray de forma (63,): [x0, y0, z0, x1, y1, z1, ..., x20, y20, z20]
-        o np.zeros(63) si no se detectó ninguna mano — mantiene la forma constante.
+        o np.zeros(63) si no hay mano visible — mantiene la forma constante entre frames.
     """
     if results.hand_landmarks:
-        # Usamos únicamente la primera mano detectada (índice 0)
-        hand = results.hand_landmarks[0]
-        # Construimos una lista plana: x, y, z por cada uno de los 21 landmarks
+        hand = results.hand_landmarks[0]   # Solo la primera mano detectada
         keypoints = []
-        for landmark in hand:
-            keypoints.extend([landmark.x, landmark.y, landmark.z])
+        for lm in hand:
+            keypoints.extend([lm.x, lm.y, lm.z])
         return np.array(keypoints, dtype=np.float32)   # forma: (63,)
     else:
-        # No hay mano visible → retornamos ceros para que cada frame mantenga forma (63,)
+        # No hay mano visible → devolvemos ceros para que cada frame mantenga forma (63,)
         return np.zeros(NUM_FEATURES, dtype=np.float32)
 
 
 # ---------------------------------------------------------------------------
-# Paso 2.3 (auxiliar) — Superponer texto en el frame para guiar al usuario
+# Paso 3 — Renderizado del HUD (modo continuo)
 # ---------------------------------------------------------------------------
-def draw_hud(frame: np.ndarray, gesture: str, sequence: int, frame_num: int, waiting: bool) -> None:
-    """Renderiza el estado de la grabación directamente sobre la imagen de la cámara."""
-    h = frame.shape[0]
-    color_acento = (0, 255, 200)   # Verde-cian para información de progreso
-    color_aviso  = (0, 200, 255)   # Amarillo-naranja para el estado de espera
-    color_label  = (255, 255, 255) # Blanco para el nombre del gesto
+def draw_hud(
+    frame: np.ndarray,
+    gesture: str,
+    saved: int,
+    buffer_len: int,
+    flash_msg: str | None,
+) -> None:
+    """
+    Superpone el estado de la grabación directamente sobre el frame de la cámara.
 
-    # Nombre del gesto en la parte superior
+    Disposición:
+      Arriba  — nombre del gesto + contador de secuencias guardadas
+      Abajo   — barra de progreso del buffer + instrucción o mensaje flash
+    """
+    h, w = frame.shape[:2]
+
+    COLOR_BLANCO  = (255, 255, 255)
+    COLOR_CIAN    = (0, 255, 200)    # Relleno de la barra y texto de progreso
+    COLOR_FLASH   = (80, 255, 80)    # Verde brillante para confirmación de guardado
+    COLOR_AVISO   = (0, 165, 255)    # Naranja para advertencia de buffer incompleto
+    COLOR_TENUE   = (140, 140, 140)  # Gris para la instrucción en reposo
+    COLOR_FONDO   = (50, 50, 50)     # Fondo oscuro de la pista de la barra
+
+    # --- Sección superior ----------------------------------------------------
     cv2.putText(frame, f"Gesto: {gesture.upper()}", (10, 35),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.9, color_label, 2)
+                cv2.FONT_HERSHEY_SIMPLEX, 0.9, COLOR_BLANCO, 2)
 
-    # Contador de secuencia actual vs. total
-    cv2.putText(frame, f"Secuencia {sequence + 1}/{NUM_SEQUENCES}", (10, 70),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.75, color_acento, 2)
+    cv2.putText(frame, f"Guardadas: {saved}/{NUM_SEQUENCES}", (10, 70),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.75, COLOR_CIAN, 2)
 
-    if waiting:
-        # Estado de pausa: pedimos al usuario que se prepare
-        cv2.putText(frame, "PREPARATE...", (10, h - 20),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, color_aviso, 3)
+    # --- Barra de progreso del buffer rodante --------------------------------
+    # Pista de fondo
+    BAR_TOP, BAR_BOT = h - 65, h - 45
+    cv2.rectangle(frame, (10, BAR_TOP), (w - 10, BAR_BOT), COLOR_FONDO, -1)
+
+    # Relleno proporcional al contenido actual del buffer
+    fill_w = int((buffer_len / SEQUENCE_LENGTH) * (w - 20))
+    if fill_w > 0:
+        cv2.rectangle(frame, (10, BAR_TOP), (10 + fill_w, BAR_BOT), COLOR_CIAN, -1)
+
+    # Etiqueta de porcentaje sobre la barra
+    pct = int(buffer_len / SEQUENCE_LENGTH * 100)
+    cv2.putText(frame, f"Buffer: {pct}%", (10, BAR_TOP - 5),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLOR_TENUE, 1)
+
+    # --- Línea inferior — mensaje flash o instrucción permanente -------------
+    if flash_msg:
+        # El color depende del tipo de mensaje: éxito o advertencia
+        color = COLOR_FLASH if "Guardado" in flash_msg else COLOR_AVISO
+        cv2.putText(frame, flash_msg, (10, h - 15),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
     else:
-        # Estado activo de grabación: mostramos el progreso de frames
-        cv2.putText(frame, f"Grabando frame {frame_num + 1}/{SEQUENCE_LENGTH}", (10, h - 20),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.75, color_acento, 2)
+        cv2.putText(frame, "ESPACIO: guardar ultimo gesto  |  Q: salir", (10, h - 15),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR_TENUE, 1)
 
 
 # ---------------------------------------------------------------------------
-# Creación de carpeta — Paso 1 del flujo de trabajo
+# Paso 4 — Creación de la carpeta de salida
 # ---------------------------------------------------------------------------
 def pedir_nombre_gesto() -> str | None:
     """
     Solicita al usuario el nombre del gesto, crea la carpeta de salida y retorna
     el nombre normalizado. Retorna None si la carpeta no se pudo crear.
     """
-    raw_name = input("Nombre del gesto a grabar: ")
-    normalized = raw_name.strip().lower()  # Quitamos espacios y convertimos a minúsculas
+    raw_name   = input("Nombre del gesto a grabar: ")
+    normalized = raw_name.strip().lower()   # Eliminamos espacios y convertimos a minúsculas
 
     if not normalized:
         print("Error: El nombre no puede estar vacío.")
         return None
 
-    # Ruta de destino: gestos/<nombre_normalizado>/
     gesture_folder = PROJECT_ROOT / "gestos" / normalized
-    # parents=True crea carpetas intermedias; exist_ok=True no falla si ya existe
-    gesture_folder.mkdir(parents=True, exist_ok=True)
+    gesture_folder.mkdir(parents=True, exist_ok=True)   # Crea carpetas intermedias sin error
 
     if not gesture_folder.exists():
         print(f"Error: No se pudo crear la carpeta: {gesture_folder}")
@@ -124,12 +152,16 @@ def pedir_nombre_gesto() -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Pasos 2.3 + 2.4 — Bucle principal de grabación
+# Paso 5 — Bucle principal de grabación (deque continuo + disparador ESPACIO)
 # ---------------------------------------------------------------------------
 def grabar_gesto(gesture_name: str, landmarker: vision.HandLandmarker) -> None:
     """
-    Graba NUM_SEQUENCES secuencias de SEQUENCE_LENGTH frames cada una, extrae
-    los puntos clave por frame y guarda cada secuencia como archivo .npy.
+    Lee frames de la cámara de forma continua y los acumula en un buffer rodante (deque).
+    Cada frame es procesado por MediaPipe y sus 63 puntos clave se agregan al buffer;
+    el frame más antiguo se descarta automáticamente cuando el buffer está lleno.
+
+    Al presionar ESPACIO, el contenido actual del buffer (últimos SEQUENCE_LENGTH frames)
+    se guarda como archivo .npy, sin interrumpir el flujo de la cámara.
 
     Convención de nombres: gestos/<gesto>/<índice_secuencia>.npy
     """
@@ -143,85 +175,80 @@ def grabar_gesto(gesture_name: str, landmarker: vision.HandLandmarker) -> None:
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-    print(f"\nIniciando grabación para el gesto '{gesture_name}'")
-    print(f"  · Secuencias: {NUM_SEQUENCES}")
-    print(f"  · Frames por secuencia: {SEQUENCE_LENGTH}")
+    print(f"\nIniciando grabación continua para '{gesture_name}'")
+    print(f"  · Realiza el gesto libremente frente a la cámara")
+    print(f"  · Cuando el gesto esté completo, presiona ESPACIO para guardar los últimos {SEQUENCE_LENGTH} frames")
+    print(f"  · Repite hasta completar {NUM_SEQUENCES} secuencias")
     print("  · Presiona Q en cualquier momento para cancelar.\n")
 
-    # -----------------------------------------------------------------------
-    # Bucle externo — cada iteración = una secuencia completa grabada
-    # -----------------------------------------------------------------------
-    for sequence in range(NUM_SEQUENCES):
-        sequence_data = []   # Lista temporal que acumula SEQUENCE_LENGTH arrays de forma (63,)
+    # Buffer rodante: descarta automáticamente el frame más antiguo cuando está lleno
+    buffer: deque[np.ndarray] = deque(maxlen=SEQUENCE_LENGTH)
 
-        # -------------------------------------------------------------------
-        # Bucle interno — cada iteración = un frame capturado
-        # -------------------------------------------------------------------
-        for frame_num in range(SEQUENCE_LENGTH):
+    sequences_saved = 0
+    flash_msg: str | None = None
+    flash_timer: int = 0
 
-            ret, frame = cap.read()
-            if not ret:
-                print("Error: No se pudo leer el frame de la cámara.")
-                break
+    while sequences_saved < NUM_SEQUENCES:
+        ret, frame = cap.read()
+        if not ret:
+            print("Error: No se pudo leer el frame de la cámara.")
+            break
 
-            # Espejamos la imagen para que el usuario vea su mano de forma natural
-            frame = cv2.flip(frame, 1)
+        # Espejamos la imagen para que el usuario vea su mano de forma natural
+        frame = cv2.flip(frame, 1)
 
-            # UX: En el primer frame de cada secuencia pausamos 2 segundos
-            # para que el usuario tenga tiempo de reposicionar la mano.
-            is_waiting = (frame_num == 0)
-            if is_waiting:
-                draw_hud(frame, gesture_name, sequence, frame_num, waiting=True)
-                cv2.imshow("GestureFlow - Recolección de Datos", frame)
-                # Pausa de 2 segundos; Q sigue funcionando para cancelar
-                if cv2.waitKey(2000) & 0xFF == ord("q"):
-                    print("\nGrabación cancelada por el usuario.")
-                    cap.release()
-                    cv2.destroyAllWindows()
-                    return
-                # Re-leemos para mostrar un frame fresco después de la pausa
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                frame = cv2.flip(frame, 1)
+        # --- Inferencia de MediaPipe (síncrona) ------------------------------
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        mp_image  = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+        results   = landmarker.detect(mp_image)
 
-            # ---------------------------------------------------------------
-            # Convertimos BGR → RGB y encapsulamos en mp.Image para la detección síncrona
-            # ---------------------------------------------------------------
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            mp_image  = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+        # Agregamos el vector de 63 puntos clave al buffer rodante
+        keypoints = extract_keypoints(results)
+        buffer.append(keypoints)
 
-            # Llamada síncrona — bloquea hasta que MediaPipe devuelve el resultado
-            results = landmarker.detect(mp_image)
+        # --- Cuenta regresiva del mensaje flash ------------------------------
+        if flash_timer > 0:
+            flash_timer -= 1
+        else:
+            flash_msg = None   # Limpiamos el flash al expirar el temporizador
 
-            # Extraemos los 63 puntos clave (ceros si no se detectó ninguna mano)
-            keypoints = extract_keypoints(results)
-            sequence_data.append(keypoints)
+        # --- HUD y visualización ---------------------------------------------
+        draw_hud(frame, gesture_name, sequences_saved, len(buffer), flash_msg)
+        cv2.imshow("GestureFlow - Recolección Continua", frame)
 
-            # Mostramos el progreso de grabación al usuario
-            draw_hud(frame, gesture_name, sequence, frame_num, waiting=False)
-            cv2.imshow("GestureFlow - Recolección de Datos", frame)
+        # --- Manejo de teclas ------------------------------------------------
+        key = cv2.waitKey(1) & 0xFF
 
-            # Espera de 1 ms para procesar eventos de la UI; permite salir con Q
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                print("\nGrabación cancelada por el usuario.")
-                cap.release()
-                cv2.destroyAllWindows()
-                return
+        if key == ord("q"):
+            print("\nGrabación cancelada por el usuario.")
+            break
 
-        # -------------------------------------------------------------------
-        # Paso 2.4 — Guardamos la secuencia completa como archivo .npy
-        # -------------------------------------------------------------------
-        # sequence_data es una lista de SEQUENCE_LENGTH arrays, cada uno de forma (63,)
-        # np.array() lo convierte a forma (SEQUENCE_LENGTH, NUM_FEATURES) = (30, 63)
-        npy_array = np.array(sequence_data, dtype=np.float32)   # forma: (30, 63)
-        save_path = output_dir / f"{sequence}.npy"
-        np.save(str(save_path), npy_array)
-        print(f"  [✓] Secuencia {sequence + 1:02d}/{NUM_SEQUENCES} guardada → {save_path.name}  forma={npy_array.shape}")
+        if key == ord(" "):
+            if len(buffer) == SEQUENCE_LENGTH:
+                # Guardamos una instantánea del buffer rodante actual
+                npy_array = np.array(buffer, dtype=np.float32)   # forma: (30, 63)
+                save_path = output_dir / f"{sequences_saved}.npy"
+                np.save(str(save_path), npy_array)
+
+                sequences_saved += 1
+                print(f"  [✓] Secuencia {sequences_saved:02d}/{NUM_SEQUENCES} guardada → {save_path.name}  forma={npy_array.shape}")
+
+                # Activamos el flash verde de confirmación en el HUD
+                flash_msg   = f"¡Guardado! ({sequences_saved}/{NUM_SEQUENCES})"
+                flash_timer = FLASH_DURATION
+
+            else:
+                # El buffer aún no está lleno (primer segundo de grabación)
+                flash_msg   = f"Buffer incompleto: {len(buffer)}/{SEQUENCE_LENGTH} frames — espera un momento"
+                flash_timer = FLASH_DURATION
 
     cap.release()
     cv2.destroyAllWindows()
-    print(f"\n✅ Recolección completa. {NUM_SEQUENCES} secuencias guardadas en: {output_dir}")
+
+    if sequences_saved == NUM_SEQUENCES:
+        print(f"\n✅ Recolección completa. {NUM_SEQUENCES} secuencias guardadas en: {output_dir}")
+    else:
+        print(f"\n⚠️ Recolección incompleta: {sequences_saved}/{NUM_SEQUENCES} secuencias guardadas.")
 
 
 # ---------------------------------------------------------------------------
@@ -233,7 +260,7 @@ if __name__ == "__main__":
     if not gesto_creado:
         exit(1)
 
-    # Paso 2: Construimos el landmarker de MediaPipe (modo IMAGE)
+    # Paso 2: Construimos el HandLandmarker de MediaPipe (modo IMAGE)
     with build_landmarker() as landmarker:
-        # Paso 3: Ejecutamos el bucle doble de grabación
+        # Paso 3: Ejecutamos el bucle de captura continua
         grabar_gesto(gesto_creado, landmarker)
