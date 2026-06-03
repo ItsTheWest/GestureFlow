@@ -1,23 +1,43 @@
-import os, time
 import cv2
 import mediapipe as mp
 import numpy as np
 from pathlib import Path
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-from mediapipe.framework.formats import landmark_pb2
 
-SEQUENCE_LENGTH = 30   # Número de frames por secuencia
-NUM_FEATURES = 63      # 21 landmarks * 3 coordenadas (x, y, z)
+# ---------------------------------------------------------------------------
+# Path resolution — mirrors the pattern used in paso_04_vocales.py
+# ---------------------------------------------------------------------------
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent.parent
+MODEL_PATH = PROJECT_ROOT / "prueba" / "hand_landmarker.task"
 
-def pedir_nombre_gesto():
-    name_gesture_folder = input ('Nombre del gesto a crear:')
-    normalized_folder = name_gesture_folder.strip().lower()
-    gesture_folder = Path(f"gestos/{normalized_folder}")
-    gesture_folder.mkdir(parents=True, exist_ok=True) #Creación de la carpeta si no existe
-    if not gesture_folder.exists():
-       return print(f"Error: No se pudo crear la carpeta: {gesture_folder}")
-    else:
-       return print('Carpeta creada')
+# ---------------------------------------------------------------------------
+# Recording parameters
+# ---------------------------------------------------------------------------
+SEQUENCE_LENGTH = 30   # Number of frames per recorded sequence (temporal window)
+NUM_FEATURES   = 63    # 21 hand landmarks * 3 coordinates (x, y, z)
+NUM_SEQUENCES  = 30    # How many example sequences to record per gesture
 
-pedir_nombre_gesto()
+
+# ---------------------------------------------------------------------------
+# Step 2.1 — MediaPipe configuration (IMAGE mode for synchronous processing)
+# ---------------------------------------------------------------------------
+# We use RunningMode.IMAGE instead of LIVE_STREAM so every detect() call
+# blocks until MediaPipe returns the result. This guarantees we capture
+# exactly SEQUENCE_LENGTH frames without any being dropped asynchronously.
+def build_landmarker() -> vision.HandLandmarker:
+    """Create and return a HandLandmarker configured for synchronous IMAGE mode."""
+    if not MODEL_PATH.is_file():
+        raise FileNotFoundError(
+            f"Modelo no encontrado en: {MODEL_PATH}\n"
+            "Asegúrate de haber descargado 'hand_landmarker.task' en la carpeta 'prueba/'."
+        )
+
+    base_options = python.BaseOptions(model_asset_path=str(MODEL_PATH))
+    options = vision.HandLandmarkerOptions(
+        base_options=base_options,
+        running_mode=vision.RunningMode.IMAGE,  # Synchronous — no callback needed
+        num_hands=1,
+    )
+    return vision.HandLandmarker.create_from_options(options)
