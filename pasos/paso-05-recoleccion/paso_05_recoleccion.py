@@ -76,7 +76,31 @@ def extract_keypoints(results: vision.HandLandmarkerResult) -> np.ndarray:
 
 
 # ---------------------------------------------------------------------------
-# Paso 3 — Renderizado del HUD en fase de cuenta regresiva
+# Paso 3a — Renderizado del HUD en fase de espera (antes de ESPACIO)
+# ---------------------------------------------------------------------------
+def draw_waiting(frame: np.ndarray, gesture: str, saved: int) -> None:
+    """Muestra el estado de espera: cámara activa pero sin recolectar todavía."""
+    h, w = frame.shape[:2]
+
+    # Nombre del gesto
+    cv2.putText(frame, f"Gesto: {gesture.upper()}", (10, 40),
+                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+
+    cv2.putText(frame, f"Guardadas: {saved}/{NUM_SEQUENCES}", (10, 80),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 200), 2)
+
+    # Instrucción central grande
+    msg = "Presiona ESPACIO para iniciar"
+    (tw, _), _ = cv2.getTextSize(msg, cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)
+    cv2.putText(frame, msg, ((w - tw) // 2, h // 2),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.85, (0, 220, 255), 2)
+
+    cv2.putText(frame, "Q: salir", (10, h - 20),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (140, 140, 140), 1)
+
+
+# ---------------------------------------------------------------------------
+# Paso 3b — Renderizado del HUD en fase de cuenta regresiva
 # ---------------------------------------------------------------------------
 def draw_countdown(frame: np.ndarray, gesture: str, seconds_left: int) -> None:
     """Muestra el nombre del gesto y el número de cuenta regresiva centrado en pantalla."""
@@ -218,9 +242,11 @@ def pedir_nombre_gesto() -> tuple[str, int] | tuple[None, None]:
 # ---------------------------------------------------------------------------
 def grabar_gesto(gesture_name: str, start_index: int, landmarker: vision.HandLandmarker) -> None:
     """
-    Fase 1 — Cuenta regresiva: muestra 3-2-1 para que el usuario se prepare.
+    Fase 0 — Espera: la cámara está activa pero NO recolecta hasta que el usuario
+              presione ESPACIO. Esto evita capturar datos accidentalmente al abrir la ventana.
+    Fase 1 — Cuenta regresiva: muestra 3-2-1 para que el usuario se coloque.
     Fase 2 — Grabación automática: el buffer rodante guarda una secuencia cada
-              SAVE_EVERY frames cuando hay una mano detectada, sin intervención del usuario.
+              SAVE_EVERY frames cuando hay una mano detectada, sin más intervención.
 
     Convención de nombres: gestos/<gesto>/<índice_secuencia>.npy
     """
@@ -240,13 +266,34 @@ def grabar_gesto(gesture_name: str, start_index: int, landmarker: vision.HandLan
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-    print(f"\nIniciando grabación automática para '{gesture_name}'")
+    print(f"\nCámara lista para '{gesture_name}'")
+    print(f"  · Presiona ESPACIO cuando estés listo para iniciar la cuenta regresiva")
     print(f"  · Faltan {sequences_needed} secuencias para completar {NUM_SEQUENCES}")
-    print(f"  · Muestra el gesto frente a la cámara durante la grabación")
     print("  · Presiona Q en cualquier momento para cancelar.\n")
 
     # -----------------------------------------------------------------------
-    # Fase 1 — Cuenta regresiva
+    # Fase 0 — Espera activa: cámara encendida, sin recolección
+    # -----------------------------------------------------------------------
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        frame = cv2.flip(frame, 1)
+        draw_waiting(frame, gesture_name, sequences_saved)
+        cv2.imshow("GestureFlow - Recolección Automática", frame)
+
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord("q"):
+            cap.release()
+            cv2.destroyAllWindows()
+            print("\nCancelado en espera.")
+            return
+        if key == ord(" "):
+            print("  → ESPACIO presionado. Iniciando cuenta regresiva...")
+            break   # Salimos de la espera e iniciamos el conteo
+
+    # -----------------------------------------------------------------------
+    # Fase 1 — Cuenta regresiva (3-2-1)
     # -----------------------------------------------------------------------
     for i in range(COUNTDOWN_SECS, 0, -1):
         deadline = time.time() + 1.0           # Cada número dura exactamente 1 segundo
