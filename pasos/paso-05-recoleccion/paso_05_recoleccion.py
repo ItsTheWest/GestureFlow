@@ -6,28 +6,28 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
 # ---------------------------------------------------------------------------
-# Path resolution — mirrors the pattern used in paso_04_vocales.py
+# Resolución de rutas — mismo patrón que paso_04_vocales.py
 # ---------------------------------------------------------------------------
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent.parent
 MODEL_PATH = PROJECT_ROOT / "prueba" / "hand_landmarker.task"
 
 # ---------------------------------------------------------------------------
-# Recording parameters
+# Parámetros de grabación
 # ---------------------------------------------------------------------------
-SEQUENCE_LENGTH = 30   # Number of frames per recorded sequence (temporal window)
-NUM_FEATURES   = 63    # 21 hand landmarks * 3 coordinates (x, y, z)
-NUM_SEQUENCES  = 30    # How many example sequences to record per gesture
+SEQUENCE_LENGTH = 30   # Número de frames que componen una sola secuencia de movimiento
+NUM_FEATURES   = 63    # 21 puntos clave de la mano * 3 coordenadas (x, y, z)
+NUM_SEQUENCES  = 30    # Cuántas secuencias de ejemplo grabaremos por gesto
 
 
 # ---------------------------------------------------------------------------
-# Step 2.1 — MediaPipe configuration (IMAGE mode for synchronous processing)
+# Paso 2.1 — Configuración de MediaPipe (modo IMAGE para procesamiento síncrono)
 # ---------------------------------------------------------------------------
-# We use RunningMode.IMAGE instead of LIVE_STREAM so every detect() call
-# blocks until MediaPipe returns the result. This guarantees we capture
-# exactly SEQUENCE_LENGTH frames without any being dropped asynchronously.
+# Usamos RunningMode.IMAGE en lugar de LIVE_STREAM para que cada llamada a detect()
+# bloquee hasta que MediaPipe devuelva el resultado. Esto garantiza que capturamos
+# exactamente SEQUENCE_LENGTH frames sin que ninguno se pierda de forma asíncrona.
 def build_landmarker() -> vision.HandLandmarker:
-    """Create and return a HandLandmarker configured for synchronous IMAGE mode."""
+    """Crea y devuelve un HandLandmarker configurado en modo IMAGE (síncrono)."""
     if not MODEL_PATH.is_file():
         raise FileNotFoundError(
             f"Modelo no encontrado en: {MODEL_PATH}\n"
@@ -37,80 +37,82 @@ def build_landmarker() -> vision.HandLandmarker:
     base_options = python.BaseOptions(model_asset_path=str(MODEL_PATH))
     options = vision.HandLandmarkerOptions(
         base_options=base_options,
-        running_mode=vision.RunningMode.IMAGE,  # Synchronous — no callback needed
+        running_mode=vision.RunningMode.IMAGE,  # Síncrono — no se necesita callback
         num_hands=1,
     )
     return vision.HandLandmarker.create_from_options(options)
 
 
 # ---------------------------------------------------------------------------
-# Step 2.2 — Keypoint extraction helper
+# Paso 2.2 — Función auxiliar de extracción de puntos clave
 # ---------------------------------------------------------------------------
 def extract_keypoints(results: vision.HandLandmarkerResult) -> np.ndarray:
     """
-    Flatten the landmarks of the first detected hand into a 1-D array of 63 values.
+    Aplana los landmarks de la primera mano detectada en un array 1-D de 63 valores.
 
-    Returns:
-        np.ndarray of shape (63,): [x0, y0, z0, x1, y1, z1, ..., x20, y20, z20]
-        or np.zeros(63) when no hand is detected — keeping data shape consistent.
+    Retorna:
+        np.ndarray de forma (63,): [x0, y0, z0, x1, y1, z1, ..., x20, y20, z20]
+        o np.zeros(63) si no se detectó ninguna mano — mantiene la forma constante.
     """
     if results.hand_landmarks:
-        # Only use the first hand detected (index 0)
+        # Usamos únicamente la primera mano detectada (índice 0)
         hand = results.hand_landmarks[0]
-        # Build a flat list: x, y, z for each of the 21 landmarks
+        # Construimos una lista plana: x, y, z por cada uno de los 21 landmarks
         keypoints = []
         for landmark in hand:
             keypoints.extend([landmark.x, landmark.y, landmark.z])
-        return np.array(keypoints, dtype=np.float32)   # shape: (63,)
+        return np.array(keypoints, dtype=np.float32)   # forma: (63,)
     else:
-        # No hand visible → return zeros so every frame stays shape (63,)
+        # No hay mano visible → retornamos ceros para que cada frame mantenga forma (63,)
         return np.zeros(NUM_FEATURES, dtype=np.float32)
 
 
 # ---------------------------------------------------------------------------
-# Step 2.3 (helper) — Overlay text on frame for user guidance
+# Paso 2.3 (auxiliar) — Superponer texto en el frame para guiar al usuario
 # ---------------------------------------------------------------------------
 def draw_hud(frame: np.ndarray, gesture: str, sequence: int, frame_num: int, waiting: bool) -> None:
-    """Render recording state info directly onto the camera feed."""
+    """Renderiza el estado de la grabación directamente sobre la imagen de la cámara."""
     h = frame.shape[0]
-    color_accent = (0, 255, 200)
-    color_warn   = (0, 200, 255)
-    color_label  = (255, 255, 255)
+    color_acento = (0, 255, 200)   # Verde-cian para información de progreso
+    color_aviso  = (0, 200, 255)   # Amarillo-naranja para el estado de espera
+    color_label  = (255, 255, 255) # Blanco para el nombre del gesto
 
-    # Gesture name at the top
+    # Nombre del gesto en la parte superior
     cv2.putText(frame, f"Gesto: {gesture.upper()}", (10, 35),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.9, color_label, 2)
 
-    # Sequence / total counter
+    # Contador de secuencia actual vs. total
     cv2.putText(frame, f"Secuencia {sequence + 1}/{NUM_SEQUENCES}", (10, 70),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.75, color_accent, 2)
+                cv2.FONT_HERSHEY_SIMPLEX, 0.75, color_acento, 2)
 
     if waiting:
-        # Pause state: ask user to get ready
+        # Estado de pausa: pedimos al usuario que se prepare
         cv2.putText(frame, "PREPARATE...", (10, h - 20),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, color_warn, 3)
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, color_aviso, 3)
     else:
-        # Active recording state: show frame progress
+        # Estado activo de grabación: mostramos el progreso de frames
         cv2.putText(frame, f"Grabando frame {frame_num + 1}/{SEQUENCE_LENGTH}", (10, h - 20),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.75, color_accent, 2)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.75, color_acento, 2)
 
 
 # ---------------------------------------------------------------------------
-# Folder creation — Step 1 of the workflow
+# Creación de carpeta — Paso 1 del flujo de trabajo
 # ---------------------------------------------------------------------------
 def pedir_nombre_gesto() -> str | None:
     """
-    Ask the user for a gesture name, create the output folder, and return the
-    normalized name. Returns None if folder creation fails.
+    Solicita al usuario el nombre del gesto, crea la carpeta de salida y retorna
+    el nombre normalizado. Retorna None si la carpeta no se pudo crear.
     """
     raw_name = input("Nombre del gesto a grabar: ")
-    normalized = raw_name.strip().lower()
+    normalized = raw_name.strip().lower()  # Quitamos espacios y convertimos a minúsculas
 
     if not normalized:
         print("Error: El nombre no puede estar vacío.")
         return None
 
+    # Ruta de destino: gestos/<nombre_normalizado>/
     gesture_folder = PROJECT_ROOT / "gestos" / normalized
+    # parents=True crea carpetas intermedias; exist_ok=True no falla si ya existe
     gesture_folder.mkdir(parents=True, exist_ok=True)
 
     if not gesture_folder.exists():
@@ -122,14 +124,14 @@ def pedir_nombre_gesto() -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Step 2.3 + 2.4 — Main recording loop
+# Pasos 2.3 + 2.4 — Bucle principal de grabación
 # ---------------------------------------------------------------------------
 def grabar_gesto(gesture_name: str, landmarker: vision.HandLandmarker) -> None:
     """
-    Record NUM_SEQUENCES sequences of SEQUENCE_LENGTH frames each, extract
-    keypoints per frame, and save every sequence as a .npy file.
+    Graba NUM_SEQUENCES secuencias de SEQUENCE_LENGTH frames cada una, extrae
+    los puntos clave por frame y guarda cada secuencia como archivo .npy.
 
-    File naming convention: gestos/<gesture>/<sequence_index>.npy
+    Convención de nombres: gestos/<gesto>/<índice_secuencia>.npy
     """
     output_dir = PROJECT_ROOT / "gestos" / gesture_name
 
@@ -147,13 +149,13 @@ def grabar_gesto(gesture_name: str, landmarker: vision.HandLandmarker) -> None:
     print("  · Presiona Q en cualquier momento para cancelar.\n")
 
     # -----------------------------------------------------------------------
-    # Outer loop — one iteration = one full recorded sequence
+    # Bucle externo — cada iteración = una secuencia completa grabada
     # -----------------------------------------------------------------------
     for sequence in range(NUM_SEQUENCES):
-        sequence_data = []   # Temporary list — will hold SEQUENCE_LENGTH arrays of shape (63,)
+        sequence_data = []   # Lista temporal que acumula SEQUENCE_LENGTH arrays de forma (63,)
 
         # -------------------------------------------------------------------
-        # Inner loop — one iteration = one captured frame
+        # Bucle interno — cada iteración = un frame capturado
         # -------------------------------------------------------------------
         for frame_num in range(SEQUENCE_LENGTH):
 
@@ -162,45 +164,45 @@ def grabar_gesto(gesture_name: str, landmarker: vision.HandLandmarker) -> None:
                 print("Error: No se pudo leer el frame de la cámara.")
                 break
 
-            # Mirror the image so the user sees their hand correctly
+            # Espejamos la imagen para que el usuario vea su mano de forma natural
             frame = cv2.flip(frame, 1)
 
-            # UX: At the very first frame of each sequence, pause 2 seconds
-            # so the user has time to reposition their hand.
+            # UX: En el primer frame de cada secuencia pausamos 2 segundos
+            # para que el usuario tenga tiempo de reposicionar la mano.
             is_waiting = (frame_num == 0)
             if is_waiting:
                 draw_hud(frame, gesture_name, sequence, frame_num, waiting=True)
                 cv2.imshow("GestureFlow - Recolección de Datos", frame)
-                # 2-second pause; still allow Q to quit
+                # Pausa de 2 segundos; Q sigue funcionando para cancelar
                 if cv2.waitKey(2000) & 0xFF == ord("q"):
                     print("\nGrabación cancelada por el usuario.")
                     cap.release()
                     cv2.destroyAllWindows()
                     return
-                # Re-read so the displayed frame after the pause is fresh
+                # Re-leemos para mostrar un frame fresco después de la pausa
                 ret, frame = cap.read()
                 if not ret:
                     break
                 frame = cv2.flip(frame, 1)
 
             # ---------------------------------------------------------------
-            # Convert BGR → RGB and wrap in mp.Image for synchronous detection
+            # Convertimos BGR → RGB y encapsulamos en mp.Image para la detección síncrona
             # ---------------------------------------------------------------
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             mp_image  = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
 
-            # Synchronous call — blocks until MediaPipe returns the result
+            # Llamada síncrona — bloquea hasta que MediaPipe devuelve el resultado
             results = landmarker.detect(mp_image)
 
-            # Extract the 63 keypoints (zeros if no hand found)
+            # Extraemos los 63 puntos clave (ceros si no se detectó ninguna mano)
             keypoints = extract_keypoints(results)
             sequence_data.append(keypoints)
 
-            # Display recording progress to the user
+            # Mostramos el progreso de grabación al usuario
             draw_hud(frame, gesture_name, sequence, frame_num, waiting=False)
             cv2.imshow("GestureFlow - Recolección de Datos", frame)
 
-            # 1 ms wait to process UI events; allow early quit with Q
+            # Espera de 1 ms para procesar eventos de la UI; permite salir con Q
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 print("\nGrabación cancelada por el usuario.")
                 cap.release()
@@ -208,14 +210,14 @@ def grabar_gesto(gesture_name: str, landmarker: vision.HandLandmarker) -> None:
                 return
 
         # -------------------------------------------------------------------
-        # Step 2.4 — Save the completed sequence as a .npy file
+        # Paso 2.4 — Guardamos la secuencia completa como archivo .npy
         # -------------------------------------------------------------------
-        # sequence_data is a list of SEQUENCE_LENGTH arrays, each of shape (63,)
-        # np.array() converts it to shape (SEQUENCE_LENGTH, NUM_FEATURES) = (30, 63)
-        npy_array = np.array(sequence_data, dtype=np.float32)   # shape: (30, 63)
+        # sequence_data es una lista de SEQUENCE_LENGTH arrays, cada uno de forma (63,)
+        # np.array() lo convierte a forma (SEQUENCE_LENGTH, NUM_FEATURES) = (30, 63)
+        npy_array = np.array(sequence_data, dtype=np.float32)   # forma: (30, 63)
         save_path = output_dir / f"{sequence}.npy"
         np.save(str(save_path), npy_array)
-        print(f"  [✓] Secuencia {sequence + 1:02d}/{NUM_SEQUENCES} guardada → {save_path.name}  shape={npy_array.shape}")
+        print(f"  [✓] Secuencia {sequence + 1:02d}/{NUM_SEQUENCES} guardada → {save_path.name}  forma={npy_array.shape}")
 
     cap.release()
     cv2.destroyAllWindows()
@@ -223,15 +225,15 @@ def grabar_gesto(gesture_name: str, landmarker: vision.HandLandmarker) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Entry point
+# Punto de entrada
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    # Step 1: Ask for gesture name and create output folder
+    # Paso 1: Pedimos el nombre del gesto y creamos la carpeta de salida
     gesto_creado = pedir_nombre_gesto()
     if not gesto_creado:
         exit(1)
 
-    # Step 2: Build the MediaPipe landmarker (IMAGE mode)
+    # Paso 2: Construimos el landmarker de MediaPipe (modo IMAGE)
     with build_landmarker() as landmarker:
-        # Step 3: Run the double recording loop
+        # Paso 3: Ejecutamos el bucle doble de grabación
         grabar_gesto(gesto_creado, landmarker)
