@@ -3,5 +3,5 @@ __pycache__/
 .vscode/
 gestos/
 *.task
-INSTRUCTIONS.md
+INSTRUCTIONS*.md
 docs/
