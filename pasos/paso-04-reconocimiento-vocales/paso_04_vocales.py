@@ -1,14 +1,15 @@
 # --- Librerías ---
-from mediapipe.tasks.python.vision import hand_landmarker
-import time
 import math
+from pathlib import Path
+import time
 
 import cv2
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-from mediapipe.framework.formats import landmark_pb2
-from pathlib import Path
+from mediapipe.tasks.python.vision import drawing_utils as mp_drawing
+from mediapipe.tasks.python.vision import drawing_styles as mp_drawing_styles
+from mediapipe.tasks.python.vision.hand_landmarker import HandLandmarksConnections as mp_hands
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent.parent
@@ -37,17 +38,12 @@ def dibujar_manos(frame, results):
         return False
 
     for hand_landmarks in results.hand_landmarks:
-        hand_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
-        hand_landmarks_proto.landmark.extend([
-            landmark_pb2.NormalizedLandmark(x=lm.x, y=lm.y, z=lm.z)
-            for lm in hand_landmarks
-        ])
-        mp.solutions.drawing_utils.draw_landmarks(
+        mp_drawing.draw_landmarks(
             frame,
-            hand_landmarks_proto,
-            mp.solutions.hands.HAND_CONNECTIONS,
-            mp.solutions.drawing_styles.get_default_hand_landmarks_style(),
-            mp.solutions.drawing_styles.get_default_hand_connections_style(),
+            hand_landmarks,
+            mp_hands.HAND_CONNECTIONS,
+            mp_drawing_styles.get_default_hand_landmarks_style(),
+            mp_drawing_styles.get_default_hand_connections_style(),
         )
     return True
 
