@@ -1,9 +1,10 @@
+from collections import deque
+from pathlib import Path
+import time
+
 import cv2
 import mediapipe as mp
 import numpy as np
-import time
-from pathlib import Path
-from collections import deque
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
@@ -384,7 +385,7 @@ def grabar_gesto(gesture_name: str, start_index: int, landmarker: vision.HandLan
 if __name__ == "__main__":
     # Paso 1: Pedimos el nombre y detectamos el índice de reanudación
     gesto_creado, next_index = pedir_nombre_gesto()
-    if gesto_creado is None:
+    if gesto_creado is None or next_index is None:
         exit(1)
 
     # Paso 2: Construimos el HandLandmarker de MediaPipe (modo IMAGE)
