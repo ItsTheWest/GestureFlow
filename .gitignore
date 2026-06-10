@@ -2,5 +2,6 @@ venv/
 __pycache__/
 .vscode/
 gestos/
+*.task
 INSTRUCTIONS.md
 docs/
