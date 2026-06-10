@@ -258,13 +258,16 @@ def grabar_gesto(gesture_name: str, start_index: int, landmarker: vision.HandLan
         print(f"✅ El gesto '{gesture_name}' ya tiene {NUM_SEQUENCES} secuencias completas.")
         return
 
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
     if not cap.isOpened():
         print("Error: No se pudo abrir la cámara.")
         return
 
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+    # Crear la ventana con GUI normal para evitar la barra de herramientas de Qt
+    cv2.namedWindow("GestureFlow - Recolección Automática", cv2.WINDOW_GUI_NORMAL)
 
     print(f"\nCámara lista para '{gesture_name}'")
     print(f"  · Presiona ESPACIO cuando estés listo para iniciar la cuenta regresiva")

@@ -63,6 +63,9 @@ if not cap.isOpened():
     print("Error: No se pudo abrir la camara")
     exit(1)
 
+# Crear la ventana con GUI normal para evitar la barra de herramientas de Qt
+cv2.namedWindow("Paso 03 - Tiempo real", cv2.WINDOW_GUI_NORMAL)
+
 # Menos píxeles desde la cámara = captura y conversión más rápidas
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)

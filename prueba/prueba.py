@@ -67,6 +67,8 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
             )
 
 # --- Visualización del resultado ---
+# Crear la ventana con GUI normal para evitar la barra de herramientas de Qt
+cv2.namedWindow("Result", cv2.WINDOW_GUI_NORMAL)
 cv2.imshow("Result", image)  # Ventana con la imagen y las manos dibujadas
 cv2.waitKey(0)  # Pausa hasta que pulses una tecla
 cv2.destroyAllWindows()  # Cierra todas las ventanas de OpenCV 

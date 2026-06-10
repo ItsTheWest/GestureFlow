@@ -6,6 +6,9 @@ if not cap.isOpened():
     print("Error: No se pudo abrir la camara")
     exit(1)
 
+# Crear la ventana con GUI normal para evitar la barra de herramientas de Qt
+cv2.namedWindow("Paso 01 - Camara", cv2.WINDOW_GUI_NORMAL)
+
 frame_count = 0
 primer_frame_logeado = False
 
