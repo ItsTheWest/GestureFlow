@@ -1,14 +1,15 @@
 # --- Librerías ---
-from mediapipe.tasks.python.vision import hand_landmarker
-import time
 import math
+from pathlib import Path
+import time
 
 import cv2
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-from mediapipe.framework.formats import landmark_pb2
-from pathlib import Path
+from mediapipe.tasks.python.vision import drawing_utils as mp_drawing
+from mediapipe.tasks.python.vision import drawing_styles as mp_drawing_styles
+from mediapipe.tasks.python.vision.hand_landmarker import HandLandmarksConnections as mp_hands
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent.parent
@@ -37,17 +38,12 @@ def dibujar_manos(frame, results):
         return False
 
     for hand_landmarks in results.hand_landmarks:
-        hand_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
-        hand_landmarks_proto.landmark.extend([
-            landmark_pb2.NormalizedLandmark(x=lm.x, y=lm.y, z=lm.z)
-            for lm in hand_landmarks
-        ])
-        mp.solutions.drawing_utils.draw_landmarks(
+        mp_drawing.draw_landmarks(
             frame,
-            hand_landmarks_proto,
-            mp.solutions.hands.HAND_CONNECTIONS,
-            mp.solutions.drawing_styles.get_default_hand_landmarks_style(),
-            mp.solutions.drawing_styles.get_default_hand_connections_style(),
+            hand_landmarks,
+            mp_hands.HAND_CONNECTIONS,
+            mp_drawing_styles.get_default_hand_landmarks_style(),
+            mp_drawing_styles.get_default_hand_connections_style(),
         )
     return True
 
@@ -65,12 +61,12 @@ def frame_para_inferencia(frame_bgr):
 def get_vowel(hand_landmarks):
     # En la API Tasks de MediaPipe, hand_landmarks es directamente una lista.
     # 1. Comprobar que los 4 dedos estén cerrados (la punta está por debajo de la articulación PIP)
-    is_index_closed = hand_landmarks[8].y > hand_landmarks[6].y
-    is_middle_closed = hand_landmarks[12].y > hand_landmarks[10].y
-    is_ring_closed = hand_landmarks[16].y > hand_landmarks[14].y
-    is_pinky_closed = hand_landmarks[20].y > hand_landmarks[18].y
-    is_ring_semi_closed = hand_landmarks[15].y > hand_landmarks[14].y and hand_landmarks[16].y > hand_landmarks[15].y
-    is_pinky_semi_closed = hand_landmarks[19].y > hand_landmarks[18].y and hand_landmarks[20].y > hand_landmarks[19].y
+    is_index_closed = hand_landmarks[8].y > hand_landmarks[6].y # y = eje vertical, de arriba hacia abajo dedo 8 es la punta y el dedo 6 es la articulación PIP
+    is_middle_closed = hand_landmarks[12].y > hand_landmarks[10].y # y = eje vertical, de arriba hacia abajo dedo 12 es la punta y el dedo 10 es la articulación PIP
+    is_ring_closed = hand_landmarks[16].y > hand_landmarks[14].y # y = eje vertical, de arriba hacia abajo dedo 16 es la punta y el dedo 14 es la articulación PIP
+    is_pinky_closed = hand_landmarks[20].y > hand_landmarks[18].y # y = eje vertical, de arriba hacia abajo dedo 20 es la punta y el dedo 18 es la articulación PIP
+    is_ring_semi_closed = hand_landmarks[15].y > hand_landmarks[14].y and hand_landmarks[16].y > hand_landmarks[15].y # y = eje vertical, de arriba hacia abajo dedo 15 es la articulación PIP y el dedo 16 es la punta
+    is_pinky_semi_closed = hand_landmarks[19].y > hand_landmarks[18].y and hand_landmarks[20].y > hand_landmarks[19].y # y = eje vertical, de arriba hacia abajo dedo 19 es la articulación PIP y el dedo 20 es la punta
     
     
     # 2. Lógica específica del pulgar para la letra 'A' (Pulgar apoyado al lado del índice)
@@ -89,20 +85,26 @@ def get_vowel(hand_landmarks):
     # Regla estricta para 'A'
     if is_index_closed and is_middle_closed and is_ring_closed and is_pinky_closed and is_thumb_up and is_thumb_on_side:
         return 'A'
+    # Regla estricta para 'E'
     if is_index_closed and is_middle_closed and is_ring_closed and is_pinky_closed and is_thumb_down:
         return 'E'
+    # Regla estricta para 'I'
     if  is_index_closed and is_middle_closed and is_ring_closed and not is_pinky_closed and is_thumb_up:
         return 'I'
+    # Regla estricta para 'U'
     if not is_index_closed and not is_middle_closed and is_ring_closed and is_pinky_closed and is_thumb_down:
         return 'U'
         
-    # Logic for 'O': Tip of the index finger touches the thumb
+    # logica para 'O' en la que los dedos de la mano se tocan y forman un circulo
     def get_distance(lm1, lm2):
         return math.sqrt((lm1.x - lm2.x)**2 + (lm1.y - lm2.y)**2)
-        
+    
     dist_thumb_index = get_distance(hand_landmarks[4], hand_landmarks[8])
+    dist_thumb_middle = get_distance(hand_landmarks[4], hand_landmarks[12])
+    are_tips_touching = dist_thumb_index < 0.05 and dist_thumb_middle < 0.05
 
-    if dist_thumb_index < 0.05:
+    # Regla estricta para 'O'
+    if are_tips_touching and is_ring_semi_closed and is_pinky_semi_closed:
         return 'O'
 if not MODEL_PATH.is_file():
     raise FileNotFoundError(f"No se encontro el modelo: {MODEL_PATH}")
@@ -111,6 +113,9 @@ cap = cv2.VideoCapture(0)
 if not cap.isOpened():
     print("Error: No se pudo abrir la camara")
     exit(1)
+
+# Crear la ventana con GUI normal para evitar la barra de herramientas de Qt
+cv2.namedWindow("Paso 03 - Tiempo real", cv2.WINDOW_GUI_NORMAL)
 
 # Menos píxeles desde la cámara = captura y conversión más rápidas
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)

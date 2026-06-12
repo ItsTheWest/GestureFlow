@@ -4,8 +4,11 @@ import cv2  # OpenCV: leer imágenes (BGR) y mostrar ventanas
 import mediapipe as mp  # MediaPipe: detección de manos y utilidades de dibujo
 from mediapipe.tasks import python  # Configuración base del modelo (.task)
 from mediapipe.tasks.python import vision  # HandLandmarker y modos de ejecución
-from mediapipe.framework.formats import landmark_pb2  # Formato protobuf que usa draw_landmarks
 from pathlib import Path  # Rutas multiplataforma sin depender del directorio actual
+
+mp_drawing = mp.tasks.vision.drawing_utils
+mp_drawing_styles = mp.tasks.vision.drawing_styles
+mp_hands = mp.tasks.vision.HandLandmarksConnections
 
 
 # --- Rutas relativas al script (funciona aunque ejecutes desde otra carpeta) ---
@@ -49,24 +52,18 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
     if results.hand_landmarks:
         # Una entrada por cada mano detectada (hasta num_hands)
         for hand_landmarks in results.hand_landmarks:
-            # La API Tasks devuelve objetos simples; draw_landmarks necesita protobuf
-            hand_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
-            hand_landmarks_proto.landmark.extend([
-                landmark_pb2.NormalizedLandmark(x=lm.x, y=lm.y, z=lm.z)
-                for lm in hand_landmarks  # 21 puntos por mano (muñeca, nudillos, yemas, etc.)
-            ])
-
             # Dibuja círculos en cada landmark y líneas según HAND_CONNECTIONS
-            mp.solutions.drawing_utils.draw_landmarks(
+            mp_drawing.draw_landmarks(
                 image,  # Se modifica in-place (misma matriz que imread)
-                hand_landmarks_proto,
-                mp.solutions.hands.HAND_CONNECTIONS,  # Qué puntos unir (esqueleto de la mano)
-                mp.solutions.drawing_styles.get_default_hand_landmarks_style(),
-                mp.solutions.drawing_styles.get_default_hand_connections_style(),
-
+                hand_landmarks,
+                mp_hands.HAND_CONNECTIONS,  # Qué puntos unir (esqueleto de la mano)
+                mp_drawing_styles.get_default_hand_landmarks_style(),
+                mp_drawing_styles.get_default_hand_connections_style(),
             )
 
 # --- Visualización del resultado ---
+# Crear la ventana con GUI normal para evitar la barra de herramientas de Qt
+cv2.namedWindow("Result", cv2.WINDOW_GUI_NORMAL)
 cv2.imshow("Result", image)  # Ventana con la imagen y las manos dibujadas
 cv2.waitKey(0)  # Pausa hasta que pulses una tecla
 cv2.destroyAllWindows()  # Cierra todas las ventanas de OpenCV 

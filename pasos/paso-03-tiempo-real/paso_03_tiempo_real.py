@@ -5,8 +5,11 @@ import cv2
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-from mediapipe.framework.formats import landmark_pb2
 from pathlib import Path
+
+mp_drawing = mp.tasks.vision.drawing_utils
+mp_drawing_styles = mp.tasks.vision.drawing_styles
+mp_hands = mp.tasks.vision.HandLandmarksConnections
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent.parent
@@ -30,17 +33,12 @@ def dibujar_manos(frame, results):
         return False
 
     for hand_landmarks in results.hand_landmarks:
-        hand_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
-        hand_landmarks_proto.landmark.extend([
-            landmark_pb2.NormalizedLandmark(x=lm.x, y=lm.y, z=lm.z)
-            for lm in hand_landmarks
-        ])
-        mp.solutions.drawing_utils.draw_landmarks(
+        mp_drawing.draw_landmarks(
             frame,
-            hand_landmarks_proto,
-            mp.solutions.hands.HAND_CONNECTIONS,
-            mp.solutions.drawing_styles.get_default_hand_landmarks_style(),
-            mp.solutions.drawing_styles.get_default_hand_connections_style(),
+            hand_landmarks,
+            mp_hands.HAND_CONNECTIONS,
+            mp_drawing_styles.get_default_hand_landmarks_style(),
+            mp_drawing_styles.get_default_hand_connections_style(),
         )
     return True
 
@@ -62,6 +60,9 @@ cap = cv2.VideoCapture(0)
 if not cap.isOpened():
     print("Error: No se pudo abrir la camara")
     exit(1)
+
+# Crear la ventana con GUI normal para evitar la barra de herramientas de Qt
+cv2.namedWindow("Paso 03 - Tiempo real", cv2.WINDOW_GUI_NORMAL)
 
 # Menos píxeles desde la cámara = captura y conversión más rápidas
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
