@@ -16,7 +16,7 @@ PROJECT_ROOT = SCRIPT_DIR.parent.parent
 MODEL_PATH   = PROJECT_ROOT / "prueba" / "hand_landmarker.task"
 
 # ---------------------------------------------------------------------------
-# Recording parameters
+# Recording parameters 
 # ---------------------------------------------------------------------------
 SEQUENCE_LENGTH  = 30   # Frames per sequence (~1 second at 30 fps)
 NUM_FEATURES     = 126  # 42 landmarks (21 per hand) × 3 coordinates (x, y, z)
@@ -55,20 +55,35 @@ def build_landmarker() -> vision.HandLandmarker:
 # ---------------------------------------------------------------------------
 # Step 2 — Keypoint extraction helper
 # ---------------------------------------------------------------------------
-# def extract_keypoints(results: vision.HandLandmarkerResult) -> np.ndarray:
+def extract_keypoints(results: vision.HandLandmarkerResult) -> np.ndarray:
     """
-    Flatten the landmarks of the first detected hand into a 1-D array of 63 values.
+    Extract landmarks from both left and right hands and flatten them.
 
     Returns:
-        np.ndarray of shape (63,): [x0, y0, z0, x1, y1, z1, ..., x20, y20, z20]
-        or np.zeros(63) if no hand is visible — keeps shape constant across frames.
+        np.ndarray of shape (126,): Concatenated 63-value arrays for left and 
+        right hands. Missing hands are represented as arrays of zeros.
     """
-    # TODO: Check if results.hand_landmarks has any entries
-    # TODO: If yes, grab the first hand and iterate its 21 landmarks
-    # TODO: Collect [x, y, z] for each landmark into a flat list
-    # TODO: Return as np.float32 array of shape (63,)
-    # TODO: If no hand detected, return np.zeros(NUM_FEATURES, dtype=np.float32)
-    pass  # type: ignore[return-value]
+    left_hand = np.zeros(63, dtype=np.float32)
+    right_hand = np.zeros(63, dtype=np.float32)
+
+    if results.hand_landmarks and results.handedness:
+        for idx, hand_info in enumerate(results.handedness):
+            # Get label: "Left" or "Right"
+            hand_label = hand_info[0].category_name
+            
+            # Extract landmarks and flatten them
+            landmarks = results.hand_landmarks[idx]
+            flat_coords = []
+            for lm in landmarks:
+                flat_coords.extend([lm.x, lm.y, lm.z])
+            
+            # Place them in the correct hand slot
+            if hand_label == "Left":
+                left_hand = np.array(flat_coords, dtype=np.float32)
+            elif hand_label == "Right":
+                right_hand = np.array(flat_coords, dtype=np.float32)
+
+    return np.concatenate([left_hand, right_hand])
 
 
 # ---------------------------------------------------------------------------
