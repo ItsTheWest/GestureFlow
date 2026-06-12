@@ -19,7 +19,7 @@ MODEL_PATH   = PROJECT_ROOT / "prueba" / "hand_landmarker.task"
 # Recording parameters
 # ---------------------------------------------------------------------------
 SEQUENCE_LENGTH  = 30   # Frames per sequence (~1 second at 30 fps)
-NUM_FEATURES     = 63   # 21 hand landmarks × 3 coordinates (x, y, z)
+NUM_FEATURES     = 126  # 42 landmarks (21 per hand) × 3 coordinates (x, y, z)
 NUM_SEQUENCES    = 30   # How many examples we collect per gesture
 
 # How often (in frames) we auto-save a sequence.
@@ -38,18 +38,24 @@ FLASH_DURATION   = 15
 # Step 1 — MediaPipe configuration (IMAGE mode = synchronous, no callback)
 # ---------------------------------------------------------------------------
 def build_landmarker() -> vision.HandLandmarker:
-    """Create and return a HandLandmarker configured in synchronous IMAGE mode."""
-    # TODO: Check if MODEL_PATH exists, raise FileNotFoundError if not
-    # TODO: Create BaseOptions with the model asset path
-    # TODO: Create HandLandmarkerOptions with IMAGE running mode and num_hands=1
-    # TODO: Return the created HandLandmarker
-    pass  # type: ignore[return-value]
+    if not MODEL_PATH.is_file():
+        raise FileNotFoundError(f"No se encontro el modelo: {MODEL_PATH}")
+    
+    base_options = python.BaseOptions(model_asset_path=str(MODEL_PATH)) 
+
+    options = vision.HandLandmarkerOptions(
+       base_options=base_options,
+       running_mode=vision.RunningMode.IMAGE,  
+       num_hands=2,                         
+    )
+
+    return vision.HandLandmarker.create_from_options(options)
 
 
 # ---------------------------------------------------------------------------
 # Step 2 — Keypoint extraction helper
 # ---------------------------------------------------------------------------
-def extract_keypoints(results: vision.HandLandmarkerResult) -> np.ndarray:
+# def extract_keypoints(results: vision.HandLandmarkerResult) -> np.ndarray:
     """
     Flatten the landmarks of the first detected hand into a 1-D array of 63 values.
 
@@ -123,7 +129,7 @@ def draw_hud(
 # ---------------------------------------------------------------------------
 # Step 5 — Output folder creation with resume support
 # ---------------------------------------------------------------------------
-def pedir_nombre_gesto() -> tuple[str, int] | tuple[None, None]:
+#def pedir_nombre_gesto() -> tuple[str, int] | tuple[None, None]:
     """
     Ask for the gesture name, create the folder, and detect how many sequences
     already exist so we can resume from the correct index without overwriting.
@@ -178,13 +184,13 @@ def grabar_gesto(gesture_name: str, start_index: int, landmarker: vision.HandLan
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
-if __name__ == "__main__":
+#if __name__ == "__main__":
     # Step 1: Ask for gesture name and detect resume index
-    gesto_creado, next_index = pedir_nombre_gesto()
-    if gesto_creado is None or next_index is None:
-        exit(1)
+    #gesto_creado, next_index = pedir_nombre_gesto()
+    #if gesto_creado is None or next_index is None:
+        #exit(1)
 
     # Step 2: Build the MediaPipe HandLandmarker (IMAGE mode)
-    with build_landmarker() as landmarker:
+    #with build_landmarker() as landmarker:
         # Step 3: Wait → countdown → automatic recording
-        grabar_gesto(gesto_creado, next_index, landmarker)
+        #grabar_gesto(gesto_creado, next_index, landmarker)
