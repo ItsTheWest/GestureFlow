@@ -89,61 +89,77 @@ def frame_para_inferencia(frame_bgr: np.ndarray) -> np.ndarray:
     return cv2.resize(frame_bgr, (ANCHO_INFERENCIA, nuevo_h), interpolation=cv2.INTER_AREA)
 
 
-def get_vowel(hand_landmarks: list) -> str | None:
+def _distancia(lm1, lm2) -> float:
+    """Distancia euclidiana normalizada entre dos landmarks (x, y)."""
+    return math.sqrt((lm1.x - lm2.x) ** 2 + (lm1.y - lm2.y) ** 2)
+
+
+def get_vowel(hand_landmarks: list, hand_label: str) -> str | None:
     """
-    Clasifica de manera heurística si el gesto de la mano corresponde a una vocal.
+    Clasifica si el gesto de la mano corresponde a una vocal.
+
+    Las condiciones que dependen del eje X (posición horizontal del pulgar)
+    se invierten para la mano izquierda, ya que el frame va en espejo y
+    la orientación del pulgar es simétrica respecto a la mano derecha.
 
     Args:
         hand_landmarks: Lista de 21 landmarks de una mano.
+        hand_label: 'Right' o 'Left' tal como devuelve MediaPipe.
 
     Returns:
-        str | None: Carácter de la vocal ('A', 'E', 'I', 'O', 'U') o None.
+        str | None: Vocal detectada ('A', 'E', 'I', 'O', 'U') o None.
     """
-    # En la API Tasks de MediaPipe, hand_landmarks es directamente una lista.
-    # 1. Comprobar que los 4 dedos estén cerrados (la punta está por debajo de la articulación PIP)
-    is_index_closed = hand_landmarks[8].y > hand_landmarks[6].y # y = eje vertical, de arriba hacia abajo dedo 8 es la punta y el dedo 6 es la articulación PIP
-    is_middle_closed = hand_landmarks[12].y > hand_landmarks[10].y # y = eje vertical, de arriba hacia abajo dedo 12 es la punta y el dedo 10 es la articulación PIP
-    is_ring_closed = hand_landmarks[16].y > hand_landmarks[14].y # y = eje vertical, de arriba hacia abajo dedo 16 es la punta y el dedo 14 es la articulación PIP
-    is_pinky_closed = hand_landmarks[20].y > hand_landmarks[18].y # y = eje vertical, de arriba hacia abajo dedo 20 es la punta y el dedo 18 es la articulación PIP
-    is_ring_semi_closed = hand_landmarks[15].y > hand_landmarks[14].y and hand_landmarks[16].y > hand_landmarks[15].y # y = eje vertical, de arriba hacia abajo dedo 15 es la articulación PIP y el dedo 16 es la punta
-    is_pinky_semi_closed = hand_landmarks[19].y > hand_landmarks[18].y and hand_landmarks[20].y > hand_landmarks[19].y # y = eje vertical, de arriba hacia abajo dedo 19 es la articulación PIP y el dedo 20 es la punta
-    
-    
-    # 2. Lógica específica del pulgar para la letra 'A' (Pulgar apoyado al lado del índice)
-    # El pulgar debe estar apuntando hacia arriba (punta más arriba que su articulación)
-    is_thumb_up = (hand_landmarks[4].y < hand_landmarks[3].y) and (hand_landmarks[4].y < hand_landmarks[6].y)
-    
-    # El pulgar NO debe cruzar los otros dedos (eso sería una 'S'). 
-    # Debe estar "por fuera" del dedo índice. Comparamos la distancia en el eje X
-    # hacia el meñique para asegurarnos de que está al lado exterior de la mano.
-    dist_thumb_to_pinky = abs(hand_landmarks[4].x - hand_landmarks[17].x)
-    dist_index_to_pinky = abs(hand_landmarks[5].x - hand_landmarks[17].x)
-    is_thumb_on_side = dist_thumb_to_pinky > dist_index_to_pinky    
+    lm = hand_landmarks  # Alias corto para mejorar legibilidad
 
-    is_thumb_down = hand_landmarks[4].x > hand_landmarks[3].x 
+    # 1. Estado de los dedos (eje Y — igual para ambas manos)
+    # Un dedo está cerrado si su punta (TIP) está por debajo de su articulación PIP
+    is_index_closed  = lm[8].y  > lm[6].y
+    is_middle_closed = lm[12].y > lm[10].y
+    is_ring_closed   = lm[16].y > lm[14].y
+    is_pinky_closed  = lm[20].y > lm[18].y
 
-    # Regla estricta para 'A'
+    # Semi-cerrado: la punta pasó el primer nudo pero no llega a la palma
+    is_ring_semi_closed  = lm[15].y > lm[14].y and lm[16].y > lm[15].y
+    is_pinky_semi_closed = lm[19].y > lm[18].y and lm[20].y > lm[19].y
+
+    # 2. Estado del pulgar (eje Y — igual para ambas manos)
+    is_thumb_up = (lm[4].y < lm[3].y) and (lm[4].y < lm[6].y)
+
+    # 3. Posición lateral del pulgar (eje X — depende de la mano)
+    # En el frame espejo la mano izquierda tiene el pulgar en X mayor (derecha de pantalla)
+    # y la mano derecha lo tiene en X menor (izquierda de pantalla).
+    # is_thumb_down: pulgar plegado HACIA los otros dedos (cruzando la palma)
+    if hand_label == "Right":
+        # Mano derecha: pulgar cruza hacia X positivo (derecha) cuando se dobla
+        is_thumb_down = lm[4].x > lm[3].x
+    else:
+        # Mano izquierda: pulgar cruza hacia X negativo (izquierda) cuando se dobla
+        is_thumb_down = lm[4].x < lm[3].x
+
+    # is_thumb_on_side: pulgar apuntando hacia el exterior (alejado del meñique)
+    # Funciona con distancias absolutas, por eso es igual en ambas manos
+    dist_pulgar_menique = abs(lm[4].x - lm[17].x)
+    dist_indice_menique = abs(lm[5].x - lm[17].x)
+    is_thumb_on_side = dist_pulgar_menique > dist_indice_menique
+
+    # 4. Reglas de clasificación
+    # 'A': todos los dedos cerrados, pulgar lateral y apuntando arriba
     if is_index_closed and is_middle_closed and is_ring_closed and is_pinky_closed and is_thumb_up and is_thumb_on_side:
         return 'A'
-    # Regla estricta para 'E'
+    # 'E': todos los dedos cerrados, pulgar plegado hacia adentro
     if is_index_closed and is_middle_closed and is_ring_closed and is_pinky_closed and is_thumb_down:
         return 'E'
-    # Regla estricta para 'I'
-    if  is_index_closed and is_middle_closed and is_ring_closed and not is_pinky_closed and is_thumb_up:
+    # 'I': solo meñique abierto, pulgar arriba
+    if is_index_closed and is_middle_closed and is_ring_closed and not is_pinky_closed and is_thumb_up:
         return 'I'
-    # Regla estricta para 'U'
+    # 'U': índice y medio abiertos, anular y meñique cerrados, pulgar adentro
     if not is_index_closed and not is_middle_closed and is_ring_closed and is_pinky_closed and is_thumb_down:
         return 'U'
-        
-    # logica para 'O' en la que los dedos de la mano se tocan y forman un circulo
-    def get_distance(lm1, lm2):
-        return math.sqrt((lm1.x - lm2.x)**2 + (lm1.y - lm2.y)**2)
-    
-    dist_thumb_index = get_distance(hand_landmarks[4], hand_landmarks[8])
-    dist_thumb_middle = get_distance(hand_landmarks[4], hand_landmarks[12])
-    are_tips_touching = dist_thumb_index < 0.05 and dist_thumb_middle < 0.05
 
-    # Regla estricta para 'O'
+    # 'O': yemas del pulgar-índice y pulgar-medio se tocan formando un círculo
+    dist_thumb_index  = _distancia(lm[4], lm[8])
+    dist_thumb_middle = _distancia(lm[4], lm[12])
+    are_tips_touching = dist_thumb_index < 0.07 and dist_thumb_middle < 0.07
     if are_tips_touching and is_ring_semi_closed and is_pinky_semi_closed:
         return 'O'
 if not MODEL_PATH.is_file():
@@ -194,7 +210,7 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
                     hand_label = ultimo_resultado.handedness[idx][0].category_name
                     manos_presentes.add(hand_label)
                     
-                    vocal = get_vowel(landmarks)
+                    vocal = get_vowel(landmarks, hand_label)
                     
                     if vocal:
                         if vocal == estado_manos[hand_label]["vocal_detectada"]:
