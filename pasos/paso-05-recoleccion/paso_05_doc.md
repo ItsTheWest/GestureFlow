@@ -1,8 +1,8 @@
 # Documentación: Paso 05 — Recolección de datos (`paso_05_recoleccion.py`)
 
-Pipeline de **recolección de datos para entrenamiento**: abre la cámara, detecta manos con MediaPipe en modo `IMAGE` (síncrono), y guarda secuencias de 30 frames como archivos `.npy` que alimentarán una red LSTM.
+Pipeline de **recolección de datos para entrenamiento**: abre la cámara, detecta manos con MediaPipe en modo `IMAGE` (síncrono), y guarda secuencias continuas en archivos `.npy` que posteriormente alimentarán una red recurrente LSTM.
 
-**Patrones compartidos:** [REFERENCIA_COMUN.md](../REFERENCIA_COMUN.md).
+Para conocer en detalle los conceptos de extracción de keypoints (126 valores), relleno con ceros, estructuración de secuencias y solapamiento temporal, consulta la [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -26,25 +26,21 @@ Pipeline de **recolección de datos para entrenamiento**: abre la cámara, detec
 
 ## 1. Objetivo del paso
 
-**Objetivo:** recopilar datos de gestos dinámicos para entrenar un modelo LSTM. Cada gesto se graba como secuencias temporales de landmarks normalizados almacenados en archivos `.npy`.
+**Objetivo:** recopilar datos de gestos dinámicos (trayectorias con movimiento en el tiempo). Cada gesto se graba como una serie de 30 fotogramas consecutivos conteniendo las coordenadas normalizadas de los landmarks, almacenándose en disco en formato `.npy`.
 
-| Incluido | No incluido (paso 6) |
-|----------|----------------------|
+| Incluido en este script | No incluido (paso 6) |
+|-------------------------|----------------------|
 | `RunningMode.IMAGE` síncrono | Entrenamiento del modelo LSTM |
-| Búfer circular `deque(maxlen=30)` | Predicción en tiempo real |
-| Guardado automático cada `SAVE_EVERY` frames | Evaluación de accuracy |
-| HUD con barra de progreso | Reconocimiento de gestos nuevos |
-| Reanudación desde archivos existentes | — |
+| Búfer circular `deque(maxlen=30)` | Predicción interactiva en tiempo real |
+| Guardado automático por stride (`SAVE_EVERY=15`) | Métricas de precisión y pérdida |
+| Tres fases de grabación y HUD gráfico | Reconocimiento final de gestos |
 
 **Criterio de éxito:**
-
-- Al ejecutar, la terminal solicita el nombre del gesto.
-- ESPACIO inicia una cuenta atrás 3-2-1.
-- Se generan 30 archivos `.npy` en `gestos/<nombre>/`.
-- Cada archivo tiene forma `(30, 126)`.
-- Al re-ejecutar con el mismo nombre, reanuda desde el índice correcto.
-
-**Requisito previo:** Pasos 01–03 funcionando (cámara + detección de manos).
+- Al ejecutar, la terminal solicita ingresar el nombre del gesto a grabar.
+- Al pulsar **ESPACIO**, se inicia una cuenta atrás visual `3-2-1` en la ventana.
+- Se generan automáticamente 30 secuencias `.npy` en el directorio `gestos/<nombre_gesto>/`.
+- Cada archivo `.npy` guardado tiene una forma matricial de `(30, 126)`.
+- Si se interrumpe y se vuelve a ejecutar con el mismo nombre, el programa cuenta los archivos existentes y reanuda secuencialmente desde el siguiente índice.
 
 ---
 
@@ -52,15 +48,11 @@ Pipeline de **recolección de datos para entrenamiento**: abre la cámara, detec
 
 | Archivo | Rol |
 |---------|-----|
-| `paso_05_recoleccion.py` | Script de recolección de datos |
-| `paso_05_doc.md` | Esta documentación |
-| `INSTRUCTIONS_PASO_05.md` | Guía de implementación paso a paso |
+| [paso_05_recoleccion.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-05-recoleccion/paso_05_recoleccion.py) | Script de grabación y almacenamiento de gestos |
+| [paso_05_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-05-recoleccion/paso_05_doc.md) | Esta documentación |
+| [INSTRUCTIONS_PASO_05.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-05-recoleccion/INSTRUCTIONS_PASO_05.md) | Guía de implementación del script paso a paso |
 
-**También en `pasos/`:** [REFERENCIA_COMUN.md](../REFERENCIA_COMUN.md).
-
-**Dependencias:** `opencv-python`, `mediapipe`, `numpy` (ver `requirements.txt`).
-
-**Necesitas:** `prueba/hand_landmarker.task` (mismo modelo de pasos anteriores).
+**Glosario y conceptos comunes:** [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -70,20 +62,20 @@ Pipeline de **recolección de datos para entrenamiento**: abre la cámara, detec
 1. pedir_nombre_gesto() → nombre + índice de reanudación
 2. build_landmarker() → HandLandmarker (IMAGE mode)
 3. grabar_gesto():
-     Fase 0 — Espera:
-       read → flip → draw_waiting() → imshow
-       ESPACIO → pasar a Fase 1
-     Fase 1 — Cuenta atrás:
-       for 3, 2, 1:
-         while < 1s: read → flip → draw_countdown() → imshow
-     Fase 2 — Grabación automática:
-       while secuencias < 30:
-         read → flip → BGR→RGB → detect()
-         extract_keypoints() → buffer.append()
-         si buffer lleno + mano visible + frame % 15 == 0:
-           np.save() → gestos/<nombre>/<N>.npy
-         draw_hud() → imshow
-4. release + destroyAllWindows
+4.      Fase 0 — Espera:
+5.        read → flip → draw_waiting() → imshow
+6.        ESPACIO → pasar a Fase 1
+7.      Fase 1 — Cuenta atrás:
+8.        for 3, 2, 1:
+9.          while < 1s: read → flip → draw_countdown() → imshow
+10.     Fase 2 — Grabación automática:
+11.       while secuencias < 30:
+12.         read → flip → BGR→RGB → detect()
+13.         extract_keypoints() → buffer.append()
+14.         si buffer lleno + mano visible + frame % 15 == 0:
+15.           np.save() → gestos/<nombre>/<N>.npy
+16.         draw_hud() → imshow
+17. release + destroyAllWindows
 ```
 
 ```mermaid
@@ -104,178 +96,90 @@ flowchart TD
 
 ## 4. Importaciones y variables
 
-| Import / símbolo | Rol |
-|------------------|-----|
-| `cv2` | Cámara, flip, ventanas, BGR→RGB, dibujo HUD |
-| `mediapipe` / `vision` | `HandLandmarker`, `RunningMode.IMAGE` |
-| `numpy` | Arrays de keypoints, guardado `.npy` |
-| `deque` (collections) | Búfer circular de longitud fija |
-| `time` | Medición de deadlines para la cuenta atrás |
-| `Path` (pathlib) | Rutas absolutas al modelo y carpetas de salida |
-
-| Variable | Valor / uso |
-|----------|-------------|
-| `SCRIPT_DIR` | Carpeta `paso-05-recoleccion/` |
-| `PROJECT_ROOT` | Raíz `GestureFlow/` (dos niveles arriba) |
-| `MODEL_PATH` | `prueba/hand_landmarker.task` |
-| `output_dir` | `gestos/<nombre_gesto>/` — carpeta donde se guardan los `.npy` |
-| `buffer` | `deque(maxlen=30)` — búfer circular de keypoints |
-| `sequences_saved` | Contador de secuencias guardadas (inicia desde `start_index`) |
-| `flash_timer` | Contador de frames para la notificación visual "¡GUARDADO!" |
+Para conocer la descripción detallada de las librerías NumPy, OpenCV, colecciones y el manejo de rutas absolutas, consulta la [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
 
 ---
 
 ## 5. Constantes de grabación
 
-| Constante | Valor | Significado |
-|-----------|-------|-------------|
-| `SEQUENCE_LENGTH` | `30` | Frames por secuencia (~1 segundo a 30 FPS) |
-| `NUM_FEATURES` | `126` | 21 landmarks × 3 coordenadas × 2 manos |
-| `NUM_SEQUENCES` | `30` | Secuencias a recolectar por gesto |
-| `SAVE_EVERY` | `15` | Cada cuántos frames se auto-guarda (50% solapamiento) |
-| `COUNTDOWN_SECS` | `3` | Segundos de cuenta atrás antes de grabar |
-| `FLASH_DURATION` | `15` | Frames que dura el flash de confirmación (~0.5s) |
+Las constantes configuran el tamaño, duración e intervalos de muestreo:
 
-### ¿Por qué 126 valores por frame?
-
-- 1 mano → 21 landmarks × 3 coordenadas (x, y, z) = **63 valores**
-- 2 manos → 63 × 2 = **126 valores**
-- Si una mano no es visible, sus 63 valores se rellenan con **ceros**.
-
-### Ventanas solapadas (`SAVE_EVERY < SEQUENCE_LENGTH`)
-
-Con `SEQUENCE_LENGTH=30` y `SAVE_EVERY=15`, cada guardado comparte 15 frames con el anterior. Esto es una técnica de **aumento de datos temporal** que genera más ejemplos de entrenamiento sin necesidad de grabar más tiempo.
+| Constante | Valor | Significado Conceptual | Referencia Común |
+|-----------|-------|-----------------------|------------------|
+| `SEQUENCE_LENGTH` | `30` | Cantidad de fotogramas (pasos de tiempo) por gesto. | [REF §4.4](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#44-formato-npy-y-secuencias-temporales) |
+| `NUM_FEATURES` | `126` | 21 landmarks × 3 coordenadas (x, y, z) × 2 manos. | [REF §4.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#43-extracción-y-relleno-de-características-extract_keypoints) |
+| `NUM_SEQUENCES` | `30` | Número de archivos `.npy` de entrenamiento por cada gesto. | Parámetro de recolección local |
+| `SAVE_EVERY` | `15` | Intervalo de guardado automático (produce un 50% de solapamiento). | [REF §4.5](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#45-solapamiento-temporal-aumento-de-datos) |
+| `COUNTDOWN_SECS` | `3` | Segundos que dura la cuenta atrás en pantalla antes de grabar. | Parámetro visual de UI |
+| `FLASH_DURATION` | `15` | Frames que dura la notificación verde "¡GUARDADO!" en pantalla. | Parámetro visual de UI |
 
 ---
 
 ## 6. Funciones del código
 
-### `build_landmarker()` → `vision.HandLandmarker`
+### Funciones Comunes del Sistema
+- `build_landmarker()`: Configura el detector en modo `IMAGE`. Ver [REF §3.1](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#31-carga-del-modelo-handlandmarkeroptions-y-baseoptions).
+- `extract_keypoints(results)`: Aplana las marcas a un array unidimensional `(126,)` rellenando con ceros si hay manos ausentes. Ver detalle en [REF §4.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#43-extracción-y-relleno-de-características-extract_keypoints).
+- `pedir_nombre_gesto()`: Gestiona la entrada por consola, crea la carpeta en el disco y calcula el índice de reanudación leyendo los archivos existentes. Ver concepto en [REF §4.4](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#44-formato-npy-y-secuencias-temporales).
 
-Crea el detector de manos MediaPipe en modo `IMAGE` (síncrono). Verifica que el modelo `.task` exista antes de cargarlo. Devuelve un objeto que soporta context manager (`with`).
-
-### `extract_keypoints(results)` → `np.ndarray` de forma `(126,)`
-
-Convierte la salida de MediaPipe en un array plano de 126 floats. Usa `results.handedness` para asignar cada mano al slot correcto (izquierda: índices 0–62, derecha: 63–125). Las manos no detectadas se rellenan con ceros.
-
-### `draw_waiting(frame, gesture, saved)` → `None`
-
-Dibuja la interfaz de espera sobre el frame de la cámara:
-- Nombre del gesto (arriba izquierda, verde)
-- Progreso `guardadas/total` (blanco)
-- `"Q: Salir"` (blanco)
-- `"PRESIONA ESPACIO PARA EMPEZAR"` (centrado horizontalmente, verde)
-
-### `draw_countdown(frame, gesture, seconds_left)` → `None`
-
-Dibuja la cuenta atrás con overlay semitransparente:
-1. Copia el frame → llena de negro → mezcla con `addWeighted(0.5, 0.5)`.
-2. Nombre del gesto (arriba izquierda).
-3. Número gigante centrado (`fontScale=6.0`, `thickness=12`).
-4. `"PREPARA TU GESTO..."` centrado en la parte inferior.
-
-### `draw_hud(frame, gesture, saved, buffer_len, frame_counter, hand_detected, flash_timer)` → `None`
-
-HUD de grabación activa con 5 elementos:
-1. **Indicador REC** rojo (arriba izquierda) + contador de guardados (arriba derecha).
-2. **Estado de mano**: verde si detectada, rojo si no.
-3. **Barra de progreso** del búfer: fondo gris, relleno verde, borde blanco.
-4. **Marcador de guardado**: línea vertical en la posición `SAVE_EVERY/SEQUENCE_LENGTH` cuando el búfer está lleno.
-5. **Flash de confirmación**: `"¡SECUENCIA GUARDADA!"` en verde o mensaje de instrucción.
-
-### `pedir_nombre_gesto()` → `tuple[str | None, int | None]`
-
-Solicita el nombre del gesto por terminal, normaliza (`strip` + `lower`), crea la carpeta `gestos/<nombre>/`, cuenta archivos `.npy` existentes para calcular el índice de reanudación.
-
-### `grabar_gesto(gesture_name, start_index, landmarker)` → `None`
-
-Función principal que orquesta las tres fases de grabación (espera, cuenta atrás, grabación automática). Gestiona la cámara, el búfer circular, la lógica de auto-guardado y la liberación de recursos.
+### Funciones Específicas de Interfaz Gráfica (HUD)
+- `draw_waiting(frame, gesture, saved)`: Dibuja la pantalla de espera (Fase 0) solicitando pulsar **ESPACIO** para comenzar.
+- `draw_countdown(frame, gesture, seconds_left)`: Crea una máscara oscura semitransparente usando `cv2.addWeighted` y muestra un contador gigante centrado.
+- `draw_hud(...)`: Dibuja el HUD durante la grabación activa (Fase 2) con:
+  1. Indicador rojo `REC: GESTO` y contador de avance.
+  2. Estado de la mano (`MANO: DETECTADA` en verde o `MANO: NO DETECTADA` en rojo).
+  3. Barra de progreso que representa el llenado del búfer circular `deque`.
+  4. Indicador vertical de guardado automático (`SAVE_EVERY`).
+  5. Flash verde intermitente indicando `"¡SECUENCIA GUARDADA!"`.
 
 ---
 
 ## 7. Las tres fases de grabación
 
-### Fase 0 — Espera
-
-La cámara muestra el vídeo en vivo con el HUD de espera. El usuario posiciona la mano y presiona **ESPACIO** para continuar. Presionar **Q** cancela y libera la cámara.
-
-### Fase 1 — Cuenta atrás 3-2-1
-
-Un bucle descendente muestra cada número durante exactamente 1 segundo. **No usa `time.sleep()`** — en su lugar, lee frames continuamente hasta que `time.time()` supere el `deadline`, manteniendo el vídeo fluido.
-
-### Fase 2 — Grabación automática
-
-1. **Detección por frame**: BGR→RGB → `mp.Image` → `landmarker.detect()`.
-2. **Extracción**: `extract_keypoints()` devuelve 126 floats → se añade al `deque`.
-3. **Auto-guardado**: cuando se cumplen **tres condiciones simultáneamente**:
-   - Búfer lleno (30 frames)
-   - Mano visible en el frame actual
-   - `frame_counter % SAVE_EVERY == 0`
-4. **Formato de salida**: `np.array(buffer, dtype=np.float32)` → `np.save()`.
-5. El bucle termina cuando `sequences_saved >= NUM_SEQUENCES` o el usuario presiona **Q**.
+- **Fase 0 — Espera**: El sistema activa la cámara en vivo pero no procesa datos. El usuario tiene tiempo de acomodar la mano y presiona **ESPACIO** al estar listo.
+- **Fase 1 — Cuenta atrás**: Muestra un contador `3`, `2`, `1` de forma fluida. Para evitar congelar el vídeo, el script no usa `time.sleep()`, sino que calcula un tiempo límite (`deadline`) y sigue leyendo frames continuamente.
+- **Fase 2 — Grabación**: Inferencia continua. Los keypoints de cada fotograma se añaden al búfer. Cuando se cumplen las tres condiciones simultáneamente:
+  1. El búfer circular está lleno (30 frames).
+  2. Hay una mano visible en el fotograma actual (evita guardar ruidos vacíos).
+  3. El contador de frames es múltiplo de `SAVE_EVERY` (solapamiento).
+  Se guarda el contenido del búfer como `np.array` y se avanza el contador de secuencias.
 
 ---
 
 ## 8. Estructura de datos de salida
 
+Los datos se estructuran y almacenan de la siguiente manera:
+
 ```text
 gestos/
-└── <nombre_gesto>/
+└── saludar/
     ├── 0.npy   → shape (30, 126)
     ├── 1.npy   → shape (30, 126)
-    ├── ...
     └── 29.npy  → shape (30, 126)
 ```
-
-Cada `.npy` contiene:
-- **30 filas** → 30 frames temporales consecutivos.
-- **126 columnas** → [left_x₀, left_y₀, left_z₀, ..., left_z₂₀, right_x₀, ..., right_z₂₀].
-- **dtype**: `float32`.
-
-Para verificar en Python:
-```python
-import numpy as np
-data = np.load("gestos/test/0.npy")
-print(data.shape)  # Debe ser (30, 126)
-```
+Cada archivo `.npy` almacena un array binario de precisión `float32`. Para la verificación conceptual del guardado, consulta la [Sección 4.4 de REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#44-formato-npy-y-secuencias-temporales).
 
 ---
 
 ## 9. OpenCV, teclas y ventana
 
-| Tecla | Fase | Acción |
-|-------|------|--------|
-| **ESPACIO** | Fase 0 | Iniciar cuenta atrás |
-| **Q** | Todas | Cancelar y liberar recursos |
-
-| OpenCV | Uso |
-|--------|-----|
-| `flip(frame, 1)` | Espejo horizontal |
-| `putText` | Texto del HUD (nombre, progreso, instrucciones) |
-| `getTextSize` | Medir texto para centrado horizontal |
-| `rectangle` | Barra de progreso (fondo, relleno, borde) |
-| `addWeighted` | Overlay semitransparente en la cuenta atrás |
-| `line` | Marcador vertical de auto-guardado |
-| `cvtColor(BGR2RGB)` | Conversión de color para MediaPipe |
-| `waitKey(1)` | Bucle fluido sin bloqueo |
+- **ESPACIO**: Utilizado únicamente en la **Fase 0** para avanzar a la cuenta atrás e iniciar la sesión de grabación.
+- **Q**: Permite abortar la ejecución de forma segura en cualquiera de las fases, garantizando que el hardware de la webcam se libere de forma correcta.
 
 ---
 
 ## 10. Consola: qué logs verás
 
-| Momento | Mensaje |
-|---------|---------|
-| Al iniciar | `Ingrese el nombre del gesto a registrar:` |
-| Carpeta nueva | `Carpeta creada. Iniciando desde la secuencia 0.` |
-| Carpeta existente | `Carpeta existente detectada. Reanudando desde la secuencia N.` |
-| Fase 0 | `Fase 0: Esperando por ESPACIO para comenzar a grabar...` |
-| Fase 1 | `Fase 1: Iniciando cuenta atrás...` |
-| Fase 2 | `Fase 2: Grabando secuencias automáticamente...` |
-| Cada guardado | `Secuencia N guardada exitosamente.` |
-| Al terminar | `Grabación terminada. Total de secuencias guardadas: 30/30` |
-| Cancelar (Q) | `Grabación cancelada en fase de espera.` |
-| Error de cámara | `Error: No se pudo abrir la cámara.` |
-| Modelo ausente | `FileNotFoundError` con ruta a `MODEL_PATH` |
+```text
+Ingrese el nombre del gesto a registrar: saludar
+Carpeta creada. Iniciando desde la secuencia 0.
+Fase 0: Esperando por ESPACIO para comenzar a grabar...
+Fase 1: Iniciando cuenta atrás...
+Fase 2: Grabando secuencias automáticamente...
+Secuencia 0 guardada exitosamente.
+Secuencia 1 guardada exitosamente.
+Grabación terminada. Total de secuencias guardadas: 30/30
+```
 
 ---
 
@@ -284,49 +188,23 @@ print(data.shape)  # Debe ser (30, 126)
 Desde la raíz del proyecto, con `venv` activado:
 
 ```bash
-source venv/bin/activate
 python pasos/paso-05-recoleccion/paso_05_recoleccion.py
 ```
-
-| En pantalla | Comportamiento |
-|-------------|----------------|
-| `GestureFlow - Recolección de Datos` | Vídeo espejo con HUD |
-| Fase 0: HUD verde | Gesto, progreso, instrucciones de teclas |
-| Fase 1: Overlay oscuro + número grande | Cuenta atrás 3-2-1 |
-| Fase 2: Barra de progreso + indicador | Grabación automática con flash de confirmación |
 
 ---
 
 ## 12. Errores frecuentes
 
-| Síntoma | Qué revisar |
-|---------|-------------|
-| `FileNotFoundError` del modelo | ¿Existe `prueba/hand_landmarker.task`? |
-| No guarda ningún `.npy` | ¿La mano es visible durante la grabación? Sin mano, la condición de guardado falla. |
-| Array con forma incorrecta | Verificar que `extract_keypoints` siempre retorne 126 valores. |
-| Se sobreescriben archivos | Verificar que `pedir_nombre_gesto` cuenta correctamente los `.npy` existentes. |
-| Vídeo congelado en cuenta atrás | ¿Usaste `time.sleep()` en vez de `deadline` con lectura activa? |
-| Cámara bloqueada tras cerrar | ¿Falta `cap.release()` en alguna rama de salida? |
-| `ValueError: too many values to unpack` | Usar `frame.shape[:2]` en lugar de `frame.shape`. |
-| Flash de confirmación no aparece | Verificar que `flash_timer` se decrementa **después** de `draw_hud()`. |
-
-Más: [REFERENCIA_COMUN.md §9](../REFERENCIA_COMUN.md#9-errores-frecuentes-todos-los-pasos).
+Para diagnosticar fallas como que no se guarde ningún archivo `.npy` (debido a la visibilidad de la mano), congelamientos en la cuenta atrás o errores de dimensiones del array, consulta la **Tabla de Errores Frecuentes Unificada** en la [Sección 6 de REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
 
 ---
 
 ## 13. ¿Puedo ir al siguiente paso?
 
-**Sí**, si:
+**Sí**, si al finalizar:
+- [ ] Se crea la carpeta correspondiente dentro de `gestos/`.
+- [ ] Se graban exactamente 30 archivos con formato `.npy` y dimensiones `(30, 126)`.
+- [ ] Ejecutar el script nuevamente con el mismo nombre de gesto detecta los archivos previos y reanuda el conteo sin sobreescribir.
+- [ ] Presionar **Q** cierra la webcam sin dejar colgado el proceso en segundo plano.
 
-- [ ] El script solicita el nombre del gesto y crea la carpeta.
-- [ ] ESPACIO inicia la cuenta atrás 3-2-1 con overlay oscuro.
-- [ ] Se generan 30 archivos `.npy` en `gestos/<nombre>/`.
-- [ ] Cada archivo tiene forma `(30, 126)`.
-- [ ] Re-ejecutar con el mismo nombre reanuda sin sobreescribir.
-- [ ] Q cierra correctamente en cualquier fase.
-
-**Siguiente:** [Paso 06 — Entrenamiento](../paso-06-entrenamiento/paso_06_doc.md) — entrenar un modelo LSTM con los datos recolectados.
-
----
-
-*Fuente de verdad: el archivo `.py` en disco. Esta documentación resume la lógica; el script incluye comentarios inline adicionales.*
+**Siguiente:** [Paso 06 — Entrenamiento LSTM](file:///home/thewest/proyectos/GestureFlow/pasos/paso-06-entrenamiento/paso_06_doc.md) — entrenamiento del modelo clasificador a partir de los datos guardados.

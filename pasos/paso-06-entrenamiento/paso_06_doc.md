@@ -2,7 +2,7 @@
 
 Paso final del pipeline: entrenar una red neuronal **LSTM** (Long Short-Term Memory) con los datos temporales recolectados en el paso 05 para reconocer gestos dinámicos de la mano.
 
-**Patrones compartidos:** [REFERENCIA_COMUN.md](../REFERENCIA_COMUN.md).
+Para conocer en detalle los conceptos de redes recurrentes LSTM, forma de los tensores de entrada, codificación de clases y compiladores del optimizador, consulta la [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -24,24 +24,21 @@ Paso final del pipeline: entrenar una red neuronal **LSTM** (Long Short-Term Mem
 
 ## 1. Objetivo del paso
 
-**Objetivo:** tomar los archivos `.npy` generados por `paso_05_recoleccion.py` y entrenar un modelo LSTM capaz de clasificar gestos dinámicos basándose en secuencias temporales de 30 frames × 126 coordenadas.
+**Objetivo:** tomar los archivos binarios `.npy` generados por el script de recolección en el paso 05 y entrenar una red recurrente LSTM para clasificar gestos dinámicos en base a secuencias continuas.
 
-| Incluido | No incluido |
-|----------|-------------|
-| Carga de datos `.npy` por gesto | Recolección de datos (paso 05) |
-| Preprocesamiento y etiquetado | Predicción en tiempo real con cámara |
-| Entrenamiento del modelo LSTM | Interfaz gráfica de usuario |
-| Evaluación de accuracy | Despliegue en producción |
-| Guardado del modelo entrenado | — |
+| Incluido en este script | No incluido |
+|-------------------------|-------------|
+| Carga automatizada de `.npy` por carpeta de gesto | Grabación física de datos (paso 05) |
+| Preprocesamiento y división train/test | Inferencia en vivo con la cámara |
+| Entrenamiento del modelo LSTM (Keras Sequential) | Interfaz visual HUD |
+| Evaluación de precisión (accuracy) final | Despliegue en producción |
+| Guardado del modelo en formato `.h5` | — |
 
 **Criterio de éxito:**
-
-- El script carga correctamente los `.npy` de `gestos/`.
-- Entrena un modelo LSTM sin errores.
-- Muestra métricas de accuracy en consola.
-- Guarda el modelo entrenado en disco.
-
-**Requisito previo:** [Paso 05](../paso-05-recoleccion/paso_05_doc.md) ejecutado al menos una vez con datos recolectados en `gestos/`.
+- El script carga correctamente el dataset almacenado en `gestos/`.
+- Compila y entrena el modelo de aprendizaje profundo sin errores.
+- Muestra el progreso de precisión y métricas de validación en cada época.
+- Genera y guarda con éxito el archivo `modelo_gestos.h5` en disco.
 
 ---
 
@@ -49,12 +46,10 @@ Paso final del pipeline: entrenar una red neuronal **LSTM** (Long Short-Term Mem
 
 | Archivo | Rol |
 |---------|-----|
-| `paso_06_recolecion.py` | Script de entrenamiento LSTM |
-| `paso_06_doc.md` | Esta documentación |
+| [paso_06_recolecion.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-06-entrenamiento/paso_06_recolecion.py) | Script de entrenamiento LSTM (Keras / TensorFlow) |
+| [paso_06_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-06-entrenamiento/paso_06_doc.md) | Esta documentación |
 
-**También en `pasos/`:** [REFERENCIA_COMUN.md](../REFERENCIA_COMUN.md).
-
-**Dependencias:** `numpy`, `tensorflow` / `keras` (ver `requirements.txt`).
+**Glosario y conceptos comunes:** [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -63,13 +58,13 @@ Paso final del pipeline: entrenar una red neuronal **LSTM** (Long Short-Term Mem
 ```text
 1. Escanear carpetas en gestos/ → lista de gestos
 2. Para cada gesto:
-     Cargar todos los .npy → concatenar
-     Crear etiquetas (label encoding)
-3. Dividir en train / test
-4. Construir modelo LSTM (Keras Sequential)
-5. Compilar y entrenar (model.fit)
-6. Evaluar accuracy en test set
-7. Guardar modelo entrenado (.h5 o SavedModel)
+3.      Cargar todos los .npy → concatenar
+4.      Crear etiquetas (label encoding)
+5. Dividir en train / test
+6. Construir modelo LSTM (Keras Sequential)
+7. Compilar y entrenar (model.fit)
+8. Evaluar accuracy en test set
+9. Guardar modelo entrenado (.h5)
 ```
 
 ```mermaid
@@ -87,51 +82,13 @@ flowchart TD
 
 ## 4. Conceptos clave
 
-### 4.1 ¿Por qué LSTM?
-
-Los gestos son **secuencias temporales** — la posición de la mano en el frame 1 influye en el significado del frame 30. Las redes densas (fully connected) no capturan esta dependencia temporal. Las LSTM (Long Short-Term Memory) son un tipo de red recurrente diseñada específicamente para aprender patrones en secuencias ordenadas.
-
-### 4.2 Forma del tensor de entrada
-
-El modelo espera tensores con forma `(batch_size, SEQUENCE_LENGTH, NUM_FEATURES)`:
-
-- **batch_size**: número de secuencias en el lote de entrenamiento.
-- **SEQUENCE_LENGTH** = 30: frames por secuencia.
-- **NUM_FEATURES** = 126: coordenadas normalizadas por frame.
-
-### 4.3 Label Encoding
-
-Cada gesto se convierte en un número entero:
-- `"saludar"` → `0`
-- `"traer"` → `1`
-- `"parar"` → `2`
-- etc.
-
-Para clasificación multiclase, las etiquetas se convierten a **one-hot encoding** con `tf.keras.utils.to_categorical()`.
-
-### 4.4 Solapamiento de datos (Data Augmentation temporal)
-
-Gracias a `SAVE_EVERY=15` del paso 05, cada secuencia comparte 15 frames con la anterior. Esto aumenta artificialmente la cantidad de ejemplos de entrenamiento, mejorando la capacidad de generalización del modelo.
+Para una descripción teórica de por qué se utilizan celdas de memoria LSTM para resolver dependencias temporales y la estructura detallada del tensor `(batch_size, 30, 126)`, consulta la [Sección 5 de REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#5-entrenamiento-lstm-y-redes-neuronales).
 
 ---
 
 ## 5. Estructura de datos de entrada
 
-```text
-gestos/
-├── saludar/
-│   ├── 0.npy   → (30, 126)
-│   ├── 1.npy   → (30, 126)
-│   └── ...
-├── traer/
-│   ├── 0.npy   → (30, 126)
-│   └── ...
-└── parar/
-    ├── 0.npy   → (30, 126)
-    └── ...
-```
-
-**Carga de datos:**
+El cargador de datos itera sobre el directorio de gestos y lee de manera secuencial los arrays guardados. Para verificar las dimensiones internas de las secuencias, consulta [REF §4.4](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#44-formato-npy-y-secuencias-temporales).
 
 ```python
 import numpy as np
@@ -144,19 +101,19 @@ X, Y = [], []
 for idx, gesto in enumerate(gestos):
     carpeta = gestos_dir / gesto
     for archivo in sorted(carpeta.glob("*.npy")):
-        secuencia = np.load(str(archivo))  # (30, 126)
+        secuencia = np.load(str(archivo))  # shape: (30, 126)
         X.append(secuencia)
         Y.append(idx)
 
-X = np.array(X)  # (N_total, 30, 126)
-Y = np.array(Y)  # (N_total,)
+X = np.array(X)  # shape final: (N_total, 30, 126)
+Y = np.array(Y)  # shape final: (N_total,)
 ```
 
 ---
 
 ## 6. Arquitectura del modelo LSTM
 
-Una arquitectura típica para este tipo de clasificación de gestos:
+Se utiliza una red secuencial compuesta por dos capas recurrentes seguidas de capas densas para la clasificación probabilística final:
 
 ```python
 from tensorflow.keras.models import Sequential
@@ -172,24 +129,18 @@ model = Sequential([
 ])
 ```
 
-| Capa | Salida | Rol |
-|------|--------|-----|
-| LSTM(64, return_sequences=True) | (batch, 30, 64) | Captura patrones temporales, pasa secuencia completa |
-| Dropout(0.2) | — | Regularización: evita sobreajuste |
-| LSTM(128) | (batch, 128) | Segunda capa recurrente, solo salida del último paso |
-| Dropout(0.2) | — | Regularización |
-| Dense(64, relu) | (batch, 64) | Capa de clasificación intermedia |
-| Dense(N, softmax) | (batch, N_gestos) | Probabilidad por gesto |
-
-### ¿Por qué `return_sequences=True` en la primera LSTM?
-
-La primera LSTM pasa la **secuencia completa** (30 pasos) a la segunda LSTM. Sin `return_sequences=True`, solo pasaría el último paso temporal, perdiendo contexto. La segunda LSTM recibe toda la secuencia y devuelve solo la representación final.
+- **`LSTM(64, return_sequences=True)`**: Primera capa recurrente. Procesa los 30 pasos temporales y retorna la secuencia completa de salida a la siguiente capa LSTM. Si no se especificara `return_sequences=True`, el modelo solo pasaría el estado final perdiendo la riqueza del flujo temporal intermedio.
+- **`Dropout(0.2)`**: Técnica de regularización. Apaga aleatoriamente el 20% de las neuronas en cada paso de actualización para evitar el sobreajuste (overfitting).
+- **`LSTM(128, return_sequences=False)`**: Segunda capa recurrente. Recibe la secuencia y entrega un único vector con la representación del estado final (último paso de tiempo).
+- **`Dense(64, activation='relu')`**: Capa densa (fully connected) intermedia para aprender combinaciones de características de alto nivel.
+- **`Dense(len(gestos), activation='softmax')`**: Capa de salida. La activación `softmax` distribuye los valores en un rango de probabilidades binarias que suman `1.0`, indicando la certeza de la predicción por cada gesto.
 
 ---
 
 ## 7. Flujo de entrenamiento
 
-### Compilación
+### Compilación y Métricas
+Configura el optimizador `Adam` y la pérdida `categorical_crossentropy` para clasificación multiclase. Ver detalles conceptuales en [REF §5.4](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#54-hiperparámetros-de-compilación).
 
 ```python
 model.compile(
@@ -199,13 +150,8 @@ model.compile(
 )
 ```
 
-| Parámetro | Valor | Razón |
-|-----------|-------|-------|
-| optimizer | `adam` | Convergencia rápida y estable |
-| loss | `categorical_crossentropy` | Clasificación multiclase con one-hot |
-| metrics | `accuracy` | Porcentaje de gestos correctamente clasificados |
-
-### Entrenamiento
+### Ajuste y División del Dataset
+Se utiliza `train_test_split` de scikit-learn para reservar un 20% del conjunto de datos para validación (`test_size=0.2`). Las etiquetas se transforman a vectores binarios categóricos (one-hot). Ver concepto de codificación en [REF §5.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#53-categorización-de-etiquetas-one-hot-encoding).
 
 ```python
 from sklearn.model_selection import train_test_split
@@ -216,11 +162,11 @@ X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
 Y_train_cat = to_categorical(Y_train)
 Y_test_cat = to_categorical(Y_test)
 
+# Ajustar pesos en 100 épocas
 model.fit(X_train, Y_train_cat, epochs=100, validation_data=(X_test, Y_test_cat))
 ```
 
-### Evaluación y guardado
-
+### Evaluación y Guardado
 ```python
 loss, accuracy = model.evaluate(X_test, Y_test_cat)
 print(f"Accuracy: {accuracy:.2%}")
@@ -232,13 +178,15 @@ model.save("modelo_gestos.h5")
 
 ## 8. Consola: qué logs verás
 
-| Momento | Mensaje |
-|---------|---------|
-| Al iniciar | `Gestos encontrados: ['saludar', 'traer', 'parar']` |
-| Carga de datos | `Total de secuencias cargadas: N` |
-| Entrenamiento | `Epoch 1/100 — loss: X.XXX — accuracy: X.XX — val_accuracy: X.XX` |
-| Al terminar | `Accuracy final: XX.XX%` |
-| Guardado | `Modelo guardado en modelo_gestos.h5` |
+```text
+Gestos encontrados: ['saludar', 'traer', 'parar']
+Total de secuencias cargadas: 90
+Epoch 1/100 — loss: 1.0921 — accuracy: 0.3333 — val_accuracy: 0.3521
+...
+Epoch 100/100 — loss: 0.0210 — accuracy: 0.9902 — val_accuracy: 0.9850
+Accuracy final: 98.50%
+Modelo guardado en modelo_gestos.h5
+```
 
 ---
 
@@ -247,41 +195,23 @@ model.save("modelo_gestos.h5")
 Desde la raíz del proyecto, con `venv` activado:
 
 ```bash
-source venv/bin/activate
 python pasos/paso-06-entrenamiento/paso_06_recolecion.py
 ```
 
-**Prerequisitos antes de ejecutar:**
-
-1. Haber ejecutado el paso 05 al menos una vez para cada gesto que desees clasificar.
-2. Tener al menos **2 gestos distintos** en `gestos/` (el modelo necesita más de una clase).
-3. Cada gesto debe tener suficientes secuencias (mínimo recomendado: 30).
+*Nota: Para poder ejecutar, debes contar con al menos **2 carpetas de gestos diferentes** en el directorio `gestos/`, cada una conteniendo secuencias grabadas en el paso 05.*
 
 ---
 
 ## 10. Errores frecuentes
 
-| Síntoma | Qué revisar |
-|---------|-------------|
-| `FileNotFoundError` en gestos/ | ¿Ejecutaste el paso 05 al menos una vez? |
-| `ValueError` en `model.fit()` | ¿Todos los `.npy` tienen forma `(30, 126)`? |
-| Accuracy muy baja (~50%) | ¿Los gestos son suficientemente distintos? ¿Suficientes secuencias? |
-| `ModuleNotFoundError: tensorflow` | Instalar TensorFlow: `pip install tensorflow` |
-| Overfitting (train 100%, test bajo) | Aumentar datos, añadir Dropout, reducir epochs |
-| Solo 1 clase detectada | Necesitas al menos 2 carpetas de gestos con datos |
+Para resolver problemas asociados a la falta de carpetas, desajuste de dimensiones en arrays de entrada, falta del módulo TensorFlow o sobreajuste (overfitting), consulta la **Tabla de Errores Frecuentes Unificada** en la [Sección 6 de REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
 
 ---
 
 ## 11. ¿Qué sigue después?
 
-Has completado el pipeline completo **recolección → entrenamiento**. Posibles extensiones:
+Has completado el flujo completo de aprendizaje automático dinámico: **Recolección (05) → Entrenamiento (06)**.
 
-- **Predicción en tiempo real**: cargar el modelo `.h5` y usar `model.predict()` sobre un búfer de 30 frames desde la cámara.
-- **Más gestos**: repetir paso 05 con nuevos nombres y re-entrenar.
-- **Transfer learning**: usar un modelo pre-entrenado y ajustarlo.
-- **Interfaz gráfica**: mostrar la predicción del gesto en la ventana de OpenCV en tiempo real.
-- **Exportación**: convertir el modelo a TensorFlow Lite para dispositivos móviles.
-
----
-
-*Fuente de verdad: el archivo `.py` en disco. Esta documentación describe la arquitectura y flujo esperados del entrenamiento.*
+**Siguientes pasos sugeridos**:
+- **Predicción en tiempo real**: Crear un script interactivo que combine la lectura de cámara de MediaPipe en tiempo real (Paso 03), acumule los landmarks en un búfer circular de 30 frames y llame a `model.predict(buffer)` para mostrar el gesto predicho dinámicamente en pantalla.
+- **TFLite**: Exportar el modelo entrenado a formato TFLite para optimizar su velocidad o integrarlo en aplicaciones móviles.
