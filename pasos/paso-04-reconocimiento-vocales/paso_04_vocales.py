@@ -5,6 +5,7 @@ import time
 
 import cv2
 import mediapipe as mp
+import numpy as np
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from mediapipe.tasks.python.vision import drawing_utils as mp_drawing
@@ -21,19 +22,41 @@ ANCHO_INFERENCIA = 320
 ultimo_resultado = None
 listo_para_inferir = True  # Evita encolar frames: solo enviamos cuando el callback terminó
 
-# Variables para validar que el gesto se mantenga (ej. 2 segundos)
-vocal_detectada = None
-tiempo_inicio_vocal = 0.0
+# Variables para validar que el gesto se mantenga por mano (Left/Right)
 TIEMPO_CONFIRMACION = 1.0  # Segundos que debe mantenerse el gesto
 
+estado_manos = {
+    "Left": {
+        "vocal_detectada": None,
+        "tiempo_inicio": 0.0,
+        "confirmada": False
+    },
+    "Right": {
+        "vocal_detectada": None,
+        "tiempo_inicio": 0.0,
+        "confirmada": False
+    }
+}
 
-def on_result(result: vision.HandLandmarkerResult, output_image: mp.Image, timestamp_ms: int):
+
+def on_result(result: vision.HandLandmarkerResult, output_image: mp.Image, timestamp_ms: int) -> None:
+    """Callback asíncrono para recibir los resultados del landmarker."""
     global ultimo_resultado, listo_para_inferir
     ultimo_resultado = result
     listo_para_inferir = True
 
 
-def dibujar_manos(frame, results):
+def dibujar_manos(frame: np.ndarray, results: vision.HandLandmarkerResult) -> bool:
+    """
+    Dibuja los landmarks y conexiones de la mano en el frame actual.
+
+    Args:
+        frame: Lienzo BGR sobre el que se dibujarán las marcas.
+        results: Resultados entregados por el landmarker.
+
+    Returns:
+        bool: True si se detectó y dibujó al menos una mano, False en caso contrario.
+    """
     if not results or not results.hand_landmarks:
         return False
 
@@ -48,8 +71,16 @@ def dibujar_manos(frame, results):
     return True
 
 
-def frame_para_inferencia(frame_bgr):
-    """Redimensiona solo para el modelo; coordenadas normalizadas siguen valiendo en el frame grande."""
+def frame_para_inferencia(frame_bgr: np.ndarray) -> np.ndarray:
+    """
+    Redimensiona el fotograma para acelerar la inferencia en CPU.
+
+    Args:
+        frame_bgr: Imagen original a resolución completa.
+
+    Returns:
+        np.ndarray: Imagen redimensionada si excede el ancho establecido.
+    """
     h, w = frame_bgr.shape[:2]
     if w <= ANCHO_INFERENCIA:
         return frame_bgr
@@ -58,7 +89,16 @@ def frame_para_inferencia(frame_bgr):
     return cv2.resize(frame_bgr, (ANCHO_INFERENCIA, nuevo_h), interpolation=cv2.INTER_AREA)
 
 
-def get_vowel(hand_landmarks):
+def get_vowel(hand_landmarks: list) -> str | None:
+    """
+    Clasifica de manera heurística si el gesto de la mano corresponde a una vocal.
+
+    Args:
+        hand_landmarks: Lista de 21 landmarks de una mano.
+
+    Returns:
+        str | None: Carácter de la vocal ('A', 'E', 'I', 'O', 'U') o None.
+    """
     # En la API Tasks de MediaPipe, hand_landmarks es directamente una lista.
     # 1. Comprobar que los 4 dedos estén cerrados (la punta está por debajo de la articulación PIP)
     is_index_closed = hand_landmarks[8].y > hand_landmarks[6].y # y = eje vertical, de arriba hacia abajo dedo 8 es la punta y el dedo 6 es la articulación PIP
@@ -147,35 +187,62 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
         if ultimo_resultado is not None:
             dibujar_manos(display, ultimo_resultado)
             
-            # Detectar vocal si hay manos detectadas
-            if ultimo_resultado.hand_landmarks:
-                vocal = get_vowel(ultimo_resultado.hand_landmarks[0])
-                
-                if vocal:
-                    if vocal == vocal_detectada:
-                        # La vocal se mantiene, comprobamos el tiempo
-                        tiempo_transcurrido = time.time() - tiempo_inicio_vocal
-                        if tiempo_transcurrido >= TIEMPO_CONFIRMACION:
-                            cv2.putText(display, f"Vocal Confirmada: {vocal}", (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
+            # Detectar vocal por mano si hay manos detectadas
+            manos_presentes = set()
+            if ultimo_resultado.hand_landmarks and ultimo_resultado.handedness:
+                for idx, landmarks in enumerate(ultimo_resultado.hand_landmarks):
+                    hand_label = ultimo_resultado.handedness[idx][0].category_name
+                    manos_presentes.add(hand_label)
+                    
+                    vocal = get_vowel(landmarks)
+                    
+                    if vocal:
+                        if vocal == estado_manos[hand_label]["vocal_detectada"]:
+                            # La vocal se mantiene, comprobamos el tiempo
+                            tiempo_transcurrido = time.time() - estado_manos[hand_label]["tiempo_inicio"]
+                            if tiempo_transcurrido >= TIEMPO_CONFIRMACION:
+                                estado_manos[hand_label]["confirmada"] = True
+                            else:
+                                estado_manos[hand_label]["confirmada"] = False
                         else:
-                            # Mostrar estado de carga (progreso)
-                            cv2.putText(display, f"Validando {vocal}... {tiempo_transcurrido:.1f}s", (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+                            # Cambio de vocal (o nueva), empezamos a contar
+                            estado_manos[hand_label]["vocal_detectada"] = vocal
+                            estado_manos[hand_label]["tiempo_inicio"] = time.time()
+                            estado_manos[hand_label]["confirmada"] = False
                     else:
-                        # Cambio de vocal (o nueva), empezamos a contar
-                        vocal_detectada = vocal
-                        tiempo_inicio_vocal = time.time()
-                else:
-                    vocal_detectada = None  # No reconoció ninguna vocal
-            else:
-                vocal_detectada = None  # No hay manos detectadas
+                        estado_manos[hand_label]["vocal_detectada"] = None
+                        estado_manos[hand_label]["confirmada"] = False
+            
+            # Resetear el estado de las manos que no aparecieron en el frame
+            for hand_label in ["Left", "Right"]:
+                if hand_label not in manos_presentes:
+                    estado_manos[hand_label]["vocal_detectada"] = None
+                    estado_manos[hand_label]["confirmada"] = False
+
+            # Dibujar el estado de las vocales en pantalla
+            y_offset = 80
+            for hand_label in ["Left", "Right"]:
+                vocal = estado_manos[hand_label]["vocal_detectada"]
+                if vocal:
+                    lado = "Izquierda" if hand_label == "Left" else "Derecha"
+                    if estado_manos[hand_label]["confirmada"]:
+                        texto = f"Mano {lado} - Confirmada: {vocal}"
+                        cv2.putText(display, texto, (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 3)
+                    else:
+                        tiempo_transcurrido = time.time() - estado_manos[hand_label]["tiempo_inicio"]
+                        texto = f"Mano {lado} - Validando {vocal}... {tiempo_transcurrido:.1f}s"
+                        cv2.putText(display, texto, (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+                    y_offset += 40
 
         cv2.putText(
-            display,"Tiempo real | Q: salir",(10, 30),cv2.FONT_HERSHEY_SIMPLEX,0.7,(0, 255, 0),2,
+            display, "Tiempo real | Q: salir", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2
         )
         # Mostrar el frame en la ventana
         cv2.imshow("Paso 03 - Tiempo real", display)
-        # Salir del bucle si se pulsa la tecla 'q'
-        if cv2.waitKey(1) & 0xFF == ord("q"):
+
+        # Control de teclado unificado (única llamada waitKey por bucle)
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord("q"):
             break
 
         # Timestamp real (ms): LIVE_STREAM exige que suba; evita desfase por frame_index fijo
@@ -190,8 +257,5 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
             )
             landmarker.detect_async(mp_image, timestamp_ms)
 
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
-
-cap.release()
-cv2.destroyAllWindows()
+    cap.release()
+    cv2.destroyAllWindows()

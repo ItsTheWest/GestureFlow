@@ -1,6 +1,6 @@
 # Documentación: Paso 04 — Reconocimiento de Vocales (`paso_04_vocales.py`)
 
-A partir de la detección asíncrona en tiempo real (Paso 03), este paso procesa algebraicamente las coordenadas de los landmarks para clasificar de forma estática las cinco vocales en español ('A', 'E', 'I', 'O', 'U').
+A partir de la detección asíncrona en tiempo real (Paso 03), este paso procesa algebraicamente las coordenadas de los landmarks para clasificar de forma estática las cinco vocales en español ('A', 'E', 'I', 'O', 'U') para **ambas manos** de forma independiente.
 
 Para conocer en detalle los conceptos de rutas, cámara, inferencia asíncrona, control de colas y dibujo del esqueleto, consulta la [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
 
@@ -12,7 +12,7 @@ Para conocer en detalle los conceptos de rutas, cámara, inferencia asíncrona, 
 - [2. Archivos de esta carpeta](#2-archivos-de-esta-carpeta)
 - [3. Pipeline](#3-pipeline)
 - [4. Lógica de Clasificación de Vocales](#4-lógica-de-clasificación-de-vocales)
-- [5. Validación Temporal](#5-validación-temporal)
+- [5. Validación Temporal por Mano](#5-validación-temporal-por-mano)
 - [6. OpenCV, teclas y ventana](#6-opencv-teclas-y-ventana)
 - [7. Cómo ejecutar](#7-cómo-ejecutar)
 - [8. Errores frecuentes](#8-errores-frecuentes)
@@ -23,20 +23,21 @@ Para conocer en detalle los conceptos de rutas, cámara, inferencia asíncrona, 
 
 ## 1. Objetivo del paso
 
-**Objetivo:** procesar los landmarks de la mano detectada en tiempo real para determinar si corresponden a la forma de una vocal en lengua de señas, validando que el gesto se mantenga de forma estable antes de confirmarlo en pantalla.
+**Objetivo:** procesar los landmarks de **ambas manos** detectadas en tiempo real para determinar si corresponden a la forma de una vocal en lengua de señas de manera independiente, validando temporalmente que el gesto se mantenga estable en cada una antes de confirmarlo.
 
 | Funcionalidad Incluida | Origen Común / Referencia |
 |-------------------------|--------------------------|
 | Clasificación geométrica de dedos abiertos/cerrados | Exclusivo de este paso |
 | Algoritmo de distancia para la letra 'O' | Exclusivo de este paso |
-| Validación temporal (`TIEMPO_CONFIRMACION = 1.0s`) | Exclusivo de este paso |
+| Validación temporal independiente por mano (`Left`/`Right`) | Exclusivo de este paso |
+| Evitar superposición en el HUD con offset vertical | Exclusivo de este paso |
 | Control de colas (`listo_para_inferir` y `ANCHO_INFERENCIA`) | [REF §3.4](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#34-control-de-flujo-de-inferencia-asíncrona) |
 | Inferencia asíncrona en tiempo real (`LIVE_STREAM`) | [REF §3.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode) |
 
 **Criterio de éxito:**
-- Al gesticular una vocal ('A', 'E', 'I', 'O', 'U') de forma estática frente a la cámara, el sistema muestra `"Validando X..."`.
-- Si se mantiene el gesto durante 1.0 segundo, el HUD muestra `"Vocal Confirmada: X"` en letras rojas grandes.
-- Si se quita la mano o cambia de gesto, la confirmación se cancela de inmediato.
+- Al gesticular una vocal con la mano izquierda, derecha o ambas, el sistema muestra `"Mano Izquierda - Validando X..."` o `"Mano Derecha - Validando Y..."` en el HUD.
+- Si se mantiene el gesto durante 1.0 segundo, el HUD muestra `"Mano [Lado] - Confirmada: X"` (rojo gigante).
+- Si una mano sale de la imagen o cambia el gesto, su estado se reinicia de manera independiente, sin alterar la validación de la otra mano.
 
 ---
 
@@ -55,60 +56,53 @@ Para conocer en detalle los conceptos de rutas, cámara, inferencia asíncrona, 
 
 ```text
 1. Cargar HandLandmarker (LIVE_STREAM, ANCHO_INFERENCIA=320)
-2. while True:
-3.      read → flip → display = copia
-4.      si listo_para_inferir:
-5.          BGR → RGB → detect_async()
-6.      si ultimo_resultado tiene landmarks:
-7.          dibujar_manos()
-8.          vocal = get_vowel(mano_0)
-9.          si vocal == vocal_detectada:
-10.             si tiempo_transcurrido >= 1.0s:
-11.                 putText("Vocal Confirmada")
-12.             sino:
-13.                 putText("Validando...")
-14.         sino:
-15.             vocal_detectada = vocal, reiniciar tiempo
-16.      imshow(display)
-17.      waitKey(1) → si 'q', break
-18. release + destroyAllWindows
+2. Inicializar estado_manos para Left y Right
+3. while True:
+4.      read → flip → display = copia
+5.      si listo_para_inferir:
+6.          BGR → RGB → detect_async()
+7.      si ultimo_resultado tiene landmarks:
+8.          dibujar_manos()
+9.          por cada mano detectada (idx):
+10.             lado = handedness[idx].category_name
+11.             vocal = get_vowel(landmarks)
+12.             actualizar estado_manos[lado] (tiempo e inicio)
+13.         resetear estado de las manos ausentes en este frame
+14.         dibujar en display estado_manos con offset vertical dinámico
+15.      imshow(display)
+16.      waitKey(1) → si 'q', break
+17. release + destroyAllWindows
 ```
 
 ---
 
 ## 4. Lógica de Clasificación de Vocales
 
-La función `get_vowel` determina el estado de la mano basándose en la posición relativa en el eje `y` (vertical: valores más bajos representan puntos más altos en la pantalla) de los siguientes landmarks de la mano (ver mapa en [REF §4.2](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#42-los-21-landmarks-de-la-mano)):
-
-- **Articulación PIP** (intermedia): puntos `6` (índice), `10` (medio), `14` (anular), `18` (meñique).
-- **Tip** (yema/punta): puntos `8` (índice), `12` (medio), `16` (anular), `20` (meñique).
+La función `get_vowel` determina el estado de la mano basándose en la posición de sus 21 landmarks en el eje `y`. Ver mapa en [REF §4.2](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#42-los-21-landmarks-de-la-mano).
 
 ### Reglas algebraicas para cada vocal:
-
-1. **Dedos Cerrados**: Se considera que un dedo está cerrado si su punta está debajo de su articulación PIP (p. ej., `lm[8].y > lm[6].y`).
-2. **Clasificación**:
-   - **Vocal 'A'**: Dedos índice, medio, anular y meñique **cerrados**. Pulgar arriba y extendido hacia el lateral exterior de la mano.
-   - **Vocal 'E'**: Dedos índice, medio, anular y meñique **cerrados**. Pulgar hacia abajo y plegado frente a los dedos.
-   - **Vocal 'I'**: Dedos índice, medio y anular **cerrados**. Dedo meñique **abierto** (apuntando hacia arriba). Pulgar arriba.
-   - **Vocal 'U'**: Dedos índice y medio **abiertos**. Dedos anular y meñique **cerrados**. Pulgar abajo.
-   - **Vocal 'O'**: Las puntas del pulgar (punto `4`) e índice (punto `8`) se tocan (distancia euclidiana menor a `0.05`), y las puntas del pulgar y medio (punto `12`) también se tocan. Dedos anular y meñique semi-cerrados.
+- **Vocal 'A'**: Dedos índice, medio, anular y meñique **cerrados** (yema debajo de la articulación PIP). Pulgar apuntando hacia arriba y al lateral exterior de la mano.
+- **Vocal 'E'**: Dedos índice, medio, anular y meñique **cerrados**. Pulgar hacia abajo plegado frente a los dedos.
+- **Vocal 'I'**: Dedos índice, medio y anular **cerrados**. Dedo meñique **abierto** (hacia arriba). Pulgar arriba.
+- **Vocal 'U'**: Dedos índice y medio **abiertos**. Dedos anular y meñique **cerrados**. Pulgar abajo.
+- **Vocal 'O'**: Distancia euclidiana entre las yemas del pulgar y el índice menor a `0.05`, y entre las yemas del pulgar y el medio menor a `0.05`. Dedos anular y meñique semi-cerrados.
 
 ---
 
-## 5. Validación Temporal
+## 5. Validación Temporal por Mano
 
-Para evitar que detecciones erróneas o parpadeos (glitches del modelo) activen letras de forma descontrolada:
-- `vocal_detectada` almacena la vocal detectada en la iteración previa.
-- `tiempo_inicio_vocal` registra con `time.time()` el instante en que se observó la vocal por primera vez.
-- Si el modelo retorna la misma vocal de forma continua durante más de `TIEMPO_CONFIRMACION = 1.0` segundo, se considera confirmada. Si la mano cambia de posición o sale del cuadro, el estado de validación se reinicia inmediatamente.
+Para admitir múltiples manos simultáneamente sin interferencias de variables:
+- Se implementa un diccionario global `estado_manos` con llaves `"Left"` y `"Right"`.
+- Cada llave contiene su propio `"vocal_detectada"`, `"tiempo_inicio"` y estado de `"confirmada"`.
+- Cada frame asocia y actualiza el estado de las manos detectadas. Si una de las manos desaparece del cuadro de captura, el sistema detecta que no está en el conjunto de manos presentes y limpia su estado de validación de inmediato.
 
 ---
 
 ## 6. OpenCV, teclas y ventana
 
 - **Q**: Cierra el programa.
-- **cv2.WINDOW_GUI_NORMAL**: Se utiliza para configurar una ventana limpia de OpenCV sin menús nativos complejos de Qt que ralenticen el flujo.
-- **Visualización**: Pinta las marcas en color verde y la notificación de validación/confirmación en la parte superior izquierda de la pantalla.
+- **cv2.WINDOW_GUI_NORMAL**: Elimina barras de menú de Qt del frame.
+- **Offset Vertical Dinámico**: Para evitar superposición, el HUD del estado de la mano izquierda se posiciona en `y = 80` y el de la mano derecha en `y = 120`.
 
 ---
 
@@ -124,13 +118,13 @@ python pasos/paso-04-reconocimiento-vocales/paso_04_vocales.py
 
 ## 8. Errores frecuentes
 
-Si notas que no se detecta la letra **O** o las letras se confirman demasiado lento, revisa la distancia euclidiana en el código o reduce el umbral de confirmación. Para fallos comunes de la webcam o del modelo, consulta la **Tabla de Errores Frecuentes Unificada** en la [Sección 6 de REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
+Si notas fallas comunes de la webcam o del modelo, consulta la **Tabla de Errores Frecuentes Unificada** en la [Sección 6 de REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
 
 ---
 
 ## 9. ¿Qué sigue después?
 
-Has aprendido a clasificar gestos **estáticos** calculando relaciones algebraicas directas sobre los landmarks de un solo frame. Sin embargo, para gestos **dinámicos** (que involucran una trayectoria en el tiempo) las reglas estáticas no bastan. 
+Has aprendido a clasificar gestos **estáticos** de múltiples manos mediante reglas heurísticas directas.
 
 **Siguiente etapa**:
 - [Paso 05 — Recolección](file:///home/thewest/proyectos/GestureFlow/pasos/paso-05-recoleccion/paso_05_doc.md): Grabar secuencias continuas de landmarks en archivos `.npy`.
