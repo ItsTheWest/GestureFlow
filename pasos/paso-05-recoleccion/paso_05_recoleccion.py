@@ -239,7 +239,7 @@ def draw_hud(
 # ---------------------------------------------------------------------------
 # Step 5 — Output folder creation with resume support
 # ---------------------------------------------------------------------------
-#def pedir_nombre_gesto() -> tuple[str, int] | tuple[None, None]:
+def pedir_nombre_gesto() -> tuple[str | None, int | None]:
     """
     Ask for the gesture name, create the folder, and detect how many sequences
     already exist so we can resume from the correct index without overwriting.
@@ -247,13 +247,30 @@ def draw_hud(
     Returns:
         (normalized_name, next_index) or (None, None) on error.
     """
-    # TODO: Read gesture name from input(), normalize (strip + lowercase)
-    # TODO: Validate non-empty
-    # TODO: Create the folder at PROJECT_ROOT / "gestos" / normalized
-    # TODO: Count existing .npy files to determine the resume index
-    # TODO: Print resume info if files exist, else print "folder ready"
-    # TODO: Return (normalized, next_index) or (None, None) on error
-    pass  # type: ignore[return-value]
+    try:
+        gesture_name = input("Ingrese el nombre del gesto a registrar: ").strip().lower()
+    except (KeyboardInterrupt, EOFError):
+        print("\nOperación cancelada por el usuario.")
+        return None, None
+
+    if not gesture_name:
+        print("Error: El nombre del gesto no puede estar vacío.")
+        return None, None
+
+    # Resolve output directory
+    output_dir = PROJECT_ROOT / "gestos" / gesture_name
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Count existing .npy files to resume recording sequentially
+    existing_files = list(output_dir.glob("*.npy"))
+    next_index = len(existing_files)
+
+    if next_index > 0:
+        print(f"Carpeta existente detectada. Reanudando desde la secuencia {next_index}.")
+    else:
+        print(f"Carpeta creada. Iniciando desde la secuencia 0.")
+
+    return gesture_name, next_index
 
 
 # ---------------------------------------------------------------------------
