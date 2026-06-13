@@ -84,24 +84,75 @@ def extract_keypoints(results: vision.HandLandmarkerResult) -> np.ndarray:
 # ---------------------------------------------------------------------------
 def draw_waiting(frame: np.ndarray, gesture: str, saved: int) -> None:
     """Show the waiting state: camera active but not collecting yet."""
-    # TODO: Get frame dimensions (h, w)
-    # TODO: Draw gesture name at top-left
-    # TODO: Draw saved count (saved/NUM_SEQUENCES)
-    # TODO: Draw centered instruction "Press SPACE to start"
-    # TODO: Draw "Q: quit" at bottom-left
-    pass
+    h,w = frame.shape[:2]
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale_hud = 0.8
+    font_scale_instruction = 1.0
+    thickness_hud = 2
+    thickness_instruction = 2
+    
+    color_green = (0, 255, 0)
+    color_white = (255, 255, 255)
+    color_black = (0, 0, 0)
+    
+    gesture_text = f"Gesto: {gesture.upper()}"
+    progress_text = f"Progreso: {saved}/{NUM_SEQUENCES}"
+    instruction_text = "PRESIONA ESPACIO PARA EMPEZAR"
+    quit_text = "Q: Salir"
 
+    #Dibujamos el texto en el frame
+    cv2.putText(frame, gesture_text, (20, 40), font, font_scale_hud, color_green, thickness_hud)
+    cv2.putText(frame, progress_text, (20, 80), font, font_scale_hud, color_white, thickness_hud) # 
+    cv2.putText(frame, quit_text, (20, 120), font, font_scale_hud, color_white, thickness_hud)
+
+    #Obtenemos las dimensiones del texto de la instrucción
+    (text_w, text_h), _ = cv2.getTextSize(instruction_text, font, font_scale_instruction, thickness_instruction)
+    
+    #Calculamos el centro del frame para posicionar el texto
+    text_x = (w - text_w) // 2
+    text_y = (h + text_h) // 2
+
+    # Dibujamos el texto de la instrucción 
+    cv2.putText(frame, instruction_text, (text_x, text_y), font, font_scale_instruction, color_green, thickness_instruction)
 
 # ---------------------------------------------------------------------------
 # Step 3b — HUD rendering for the countdown phase
 # ---------------------------------------------------------------------------
 def draw_countdown(frame: np.ndarray, gesture: str, seconds_left: int) -> None:
     """Show the gesture name and the countdown number centered on screen."""
-    # TODO: Create a semi-transparent dark overlay for readability
-    # TODO: Draw gesture name at top-left
-    # TODO: Draw the countdown number large and centered
-    # TODO: Draw "Prepare your gesture..." at the bottom
-    pass
+    h, w = frame.shape[:2]
+    font = cv2.FONT_HERSHEY_SIMPLEX
+
+    # Create a semi-transparent dark overlay for readability
+    overlay = frame.copy()
+    cv2.rectangle(overlay, (0, 0), (w, h), (0, 0, 0), -1)
+    cv2.addWeighted(overlay, 0.5, frame, 0.5, 0, frame)
+    
+    # Draw gesture name at top-left
+    gesture_text = f"Gesto: {gesture.upper()}"
+    cv2.putText(frame, gesture_text, (20, 40), font, 0.8, (0, 255, 0), 2)
+    
+    # Draw "Q: quit" instruction at top-left (below gesture)
+    quit_text = "Q: Salir"
+    cv2.putText(frame, quit_text, (20, 80), font, 0.8, (255, 255, 255), 2)
+
+    # Draw the countdown number large and centered
+    number_text = str(seconds_left)
+    font_scale_num = 6.0
+    thickness_num = 12
+    (num_w, num_h), _ = cv2.getTextSize(number_text, font, font_scale_num, thickness_num)
+    num_x = (w - num_w) // 2
+    num_y = (h + num_h) // 2
+    cv2.putText(frame, number_text, (num_x, num_y), font, font_scale_num, (0, 255, 0), thickness_num)
+
+    # Draw "Prepare your gesture..." at the bottom
+    prepare_text = "PREPARA TU GESTO..."
+    font_scale_prep = 0.8
+    thickness_prep = 2
+    (prep_w, prep_h), _ = cv2.getTextSize(prepare_text, font, font_scale_prep, thickness_prep)
+    prep_x = (w - prep_w) // 2
+    prep_y = h - 60
+    cv2.putText(frame, prepare_text, (prep_x, prep_y), font, font_scale_prep, (255, 255, 255), thickness_prep)
 
 
 # ---------------------------------------------------------------------------
@@ -125,13 +176,64 @@ def draw_hud(
       · Rolling buffer progress bar with next auto-save marker
       · Confirmation flash when a sequence is saved
     """
-    # TODO: Get frame dimensions (h, w), define color constants
-    # TODO: Draw gesture name and saved count at top
-    # TODO: Draw hand detection indicator (green if detected, red if not)
-    # TODO: Draw a progress bar showing buffer fill percentage
-    # TODO: When buffer is full, draw a vertical marker showing SAVE_EVERY cycle
-    # TODO: Draw flash message or default instruction at bottom
-    pass
+    h, w = frame.shape[:2]
+    font = cv2.FONT_HERSHEY_SIMPLEX
+
+    # BGR Color definitions
+    color_red = (0, 0, 255)
+    color_green = (0, 255, 0)
+    color_white = (255, 255, 255)
+    color_gray = (50, 50, 50)
+
+    # 1. Top HUD bar: REC Indicator (left) & Saved counter (right)
+    rec_text = f"REC: {gesture.upper()}"
+    cv2.putText(frame, rec_text, (20, 40), font, 0.8, color_red, 2)
+
+    progress_text = f"GUARDADO: {saved}/{NUM_SEQUENCES}"
+    (prog_w, _), _ = cv2.getTextSize(progress_text, font, 0.8, 2)
+    cv2.putText(frame, progress_text, (w - prog_w - 20, 40), font, 0.8, color_white, 2)
+
+    # 2. Hand detection status
+    if hand_detected:
+        hand_text = "MANO: DETECTADA"
+        hand_color = color_green
+    else:
+        hand_text = "MANO: NO DETECTADA"
+        hand_color = color_red
+    cv2.putText(frame, hand_text, (20, 80), font, 0.7, hand_color, 2)
+
+    # 3. Buffer Progress Bar (at the bottom)
+    bar_w, bar_h = 400, 20
+    bar_x = (w - bar_w) // 2
+    bar_y = h - 50
+
+    # Draw progress bar background (dark gray)
+    cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_w, bar_y + bar_h), color_gray, -1)
+
+    # Draw filled portion (green)
+    if buffer_len > 0:
+        fill_w = int((buffer_len / SEQUENCE_LENGTH) * bar_w)
+        cv2.rectangle(frame, (bar_x, bar_y), (bar_x + fill_w, bar_y + bar_h), color_green, -1)
+
+    # Draw progress bar border (white outline)
+    cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_w, bar_y + bar_h), color_white, 1)
+
+    # 4. Save marker: when buffer is full, draw stride line at SAVE_EVERY offset
+    if buffer_len == SEQUENCE_LENGTH:
+        marker_x = bar_x + int((SAVE_EVERY / SEQUENCE_LENGTH) * bar_w)
+        cv2.line(frame, (marker_x, bar_y), (marker_x, bar_y + bar_h), color_white, 2)
+
+    # 5. Flash confirmation or prompt just above the progress bar
+    if flash_timer > 0:
+        flash_text = "¡SECUENCIA GUARDADA!"
+        flash_color = color_green
+    else:
+        flash_text = "Mueve la mano para registrar el gesto..."
+        flash_color = color_white
+
+    (flash_w, _), _ = cv2.getTextSize(flash_text, font, 0.7, 2)
+    flash_x = (w - flash_w) // 2
+    cv2.putText(frame, flash_text, (flash_x, bar_y - 15), font, 0.7, flash_color, 2)
 
 
 # ---------------------------------------------------------------------------
