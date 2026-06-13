@@ -53,31 +53,24 @@ def build_landmarker() -> vision.HandLandmarker:
 
 
 # ---------------------------------------------------------------------------
-# Step 2 — Keypoint extraction helper
+# Step 2 — Extracción de Keypoints
 # ---------------------------------------------------------------------------
 def extract_keypoints(results: vision.HandLandmarkerResult) -> np.ndarray:
-    """
-    Extract landmarks from both left and right hands and flatten them.
+    left_hand = np.zeros(63, dtype=np.float32) # Inicializa la mano izquierda en ceros
+    right_hand = np.zeros(63, dtype=np.float32) # Inicializa la mano derecha en ceros
 
-    Returns:
-        np.ndarray of shape (126,): Concatenated 63-value arrays for left and 
-        right hands. Missing hands are represented as arrays of zeros.
-    """
-    left_hand = np.zeros(63, dtype=np.float32)
-    right_hand = np.zeros(63, dtype=np.float32)
-
-    if results.hand_landmarks and results.handedness:
-        for idx, hand_info in enumerate(results.handedness):
-            # Get label: "Left" or "Right"
+    if results.hand_landmarks and results.handedness: # Si se detectan manos
+        for idx, hand_info in enumerate(results.handedness): # Recorre las manos detectadas
+            # Extracción de la mano izquierda o derecha
             hand_label = hand_info[0].category_name
             
-            # Extract landmarks and flatten them
+            # Extracción de los landmarks y aplanamiento
             landmarks = results.hand_landmarks[idx]
-            flat_coords = []
+            flat_coords = [] # Lista para almacenar las coordenadas de los landmarks
             for lm in landmarks:
-                flat_coords.extend([lm.x, lm.y, lm.z])
+                flat_coords.extend([lm.x, lm.y, lm.z]) # Se añade cada coordenada
             
-            # Place them in the correct hand slot
+            # Colocación en el slot correcto
             if hand_label == "Left":
                 left_hand = np.array(flat_coords, dtype=np.float32)
             elif hand_label == "Right":
