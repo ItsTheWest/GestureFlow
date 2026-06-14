@@ -312,13 +312,13 @@ def grabar_gesto(gesture_name: str, start_index: int, landmarker: vision.HandLan
             break
 
         frame = cv2.flip(frame, 1)  # Espejar fotograma
-        draw_waiting(frame, gesture_name, sequences_saved)
+        draw_waiting(frame, gesture_name, sequences_saved) 
         cv2.imshow(window_name, frame)
 
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord(' '):
+        key = cv2.waitKey(1) & 0xFF # Espera que se presione una tecla
+        if key == ord(' '): # si se presiona la barra espaciadora
             break
-        elif key == ord('q'):
+        elif key == ord('q'): # si se presiona la tecla q
             print("Grabación cancelada en fase de espera.")
             cap.release()
             cv2.destroyAllWindows()
@@ -329,18 +329,18 @@ def grabar_gesto(gesture_name: str, start_index: int, landmarker: vision.HandLan
     # -----------------------------------------------------------------------
     print("Fase 1: Iniciando cuenta atrás...")
     for sec in range(COUNTDOWN_SECS, 0, -1):
-        deadline = time.time() + 1.0
-        while time.time() < deadline:
+        deadline = time.time() + 1.0 # Espera 1 segundo
+        while time.time() < deadline: # Mientras no pase 1 segundo
             ret, frame = cap.read()
             if not ret:
                 break
 
             frame = cv2.flip(frame, 1)
             draw_countdown(frame, gesture_name, sec)
-            cv2.imshow(window_name, frame)
+            cv2.imshow(window_name, frame) 
 
-            key = cv2.waitKey(1) & 0xFF
-            if key == ord('q'):
+            key = cv2.waitKey(1) & 0xFF # Espera que se presione una tecla
+            if key == ord('q'): # si se presiona la tecla q
                 print("Grabación cancelada durante cuenta atrás.")
                 cap.release()
                 cv2.destroyAllWindows()
@@ -350,7 +350,7 @@ def grabar_gesto(gesture_name: str, start_index: int, landmarker: vision.HandLan
     # Fase 2 — Bucle de Grabación Automática
     # -----------------------------------------------------------------------
     print("Fase 2: Grabando secuencias automáticamente...")
-    buffer: deque = deque(maxlen=SEQUENCE_LENGTH)
+    buffer: deque = deque(maxlen=SEQUENCE_LENGTH) # Búfer circular de longitud fija
     frame_counter = 0
     flash_timer = 0
 
@@ -372,18 +372,19 @@ def grabar_gesto(gesture_name: str, start_index: int, landmarker: vision.HandLan
         # Extraer características (126 coordenadas) y añadir al búfer circular
         keypoints = extract_keypoints(results)
         buffer.append(keypoints)
-        frame_counter += 1
+        frame_counter += 1 
 
         hand_detected = bool(results.hand_landmarks)
 
         # Guardado automático: búfer lleno + mano visible + intervalo de fotogramas cumplido
+        #validacion que permite que el modelo detecte la mano
         if len(buffer) == SEQUENCE_LENGTH and hand_detected and (frame_counter % SAVE_EVERY == 0):
-            sequence_data = np.array(buffer, dtype=np.float32)
-            file_path = output_dir / f"{sequences_saved}.npy"
-            np.save(str(file_path), sequence_data)
-            print(f"Secuencia {sequences_saved} guardada exitosamente.")
-            sequences_saved += 1
-            flash_timer = FLASH_DURATION
+            sequence_data = np.array(buffer, dtype=np.float32) # Convierte el búfer a un array de NumPy y lo guarda como un archivo .npy
+            file_path = output_dir / f"{sequences_saved}.npy" # Crea la ruta del archivo .npy con el índice de la secuencia
+            np.save(str(file_path), sequence_data) # Guarda el array de NumPy en el archivo .npy
+            print(f"Secuencia {sequences_saved} guardada exitosamente.") # Imprime el mensaje de que la secuencia se guardó exitosamente
+            sequences_saved += 1 # Incrementa el contador de secuencias guardadas
+            flash_timer = FLASH_DURATION # Reinicia el temporizador de flash
 
         # Renderizar capas del HUD
         draw_hud(
