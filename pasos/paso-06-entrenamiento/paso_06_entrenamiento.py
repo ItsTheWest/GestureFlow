@@ -1,15 +1,18 @@
-from pathlib import Path
-
-import numpy as np
 import tensorflow as tf
-from keras.utils import to_categorical
+from pathlib import Path
+import numpy as np
+
 from sklearn.model_selection import train_test_split
+from keras.utils import to_categorical
 
 GESTOS_DIR = Path("gestos")
 
-SEQUENCE_LENGTH = 30
+SEQUENCE_LENGTH = 30 #Se define la longitud de la secuencia
 
-NUM_FEATURES = 126 
+NUM_FEATURES = 126 #Se define el numero de caracteristicas
+
+TEST_SIZE    = 0.20 #Se define el tamaño del conjunto de prueba
+RANDOM_STATE = 42 #Se define la semilla para la generacion de numeros aleatorios
 
 def cargar_dataset() -> tuple[np.ndarray, np.ndarray, list[str]]:
     if not GESTOS_DIR.exists(): #Se evalua si la carpeta con gestos existe
@@ -56,12 +59,17 @@ def cargar_dataset() -> tuple[np.ndarray, np.ndarray, list[str]]:
     X = np.array(X, dtype=np.float32) # Convertimos la lista X a un array de numpy
     Y = np.array(Y, dtype=np.int32) # Convertimos la lista Y a un array de numpy
 
-    print(f"X:{X.shape}\nY:{Y.shape}") # Imprimimos la forma de X y Y
+    # print(f"X:{X.shape}\nY:{Y.shape}")
 
     return X, Y, gestos # Se retorna la lista X, la lista Y y la lista gestos
 
-
-
+def procesar(X:np.ndarray, Y:np.ndarray, num_clases:int):
+    X_train, X_test, Y_train, Y_test = train_test_split(
+    X, Y, 
+    test_size=TEST_SIZE,  # se reserva el 20% porciento de modelo para probar y el restante para el entrenamiento
+    random_state=RANDOM_STATE, 
+    stratify=Y) 
+    
 if __name__ == "__main__":
     X,Y,gestos = cargar_dataset()
     print(gestos)
