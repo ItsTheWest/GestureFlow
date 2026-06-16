@@ -1,6 +1,9 @@
-import tensorflow as tf
 from pathlib import Path
+
 import numpy as np
+import tensorflow as tf
+from keras.utils import to_categorical
+from sklearn.model_selection import train_test_split
 
 GESTOS_DIR = Path("gestos")
 
