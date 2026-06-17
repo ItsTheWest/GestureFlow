@@ -6,6 +6,7 @@ gestos/
 INSTRUCTIONS*.md
 docs/
 steps_training_lstm.md
+explicacion_variables_entrenamiento.md
 
 
 # ---------------------------------------------------------------------------

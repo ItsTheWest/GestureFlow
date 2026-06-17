@@ -73,9 +73,10 @@ def procesar(X:np.ndarray, Y:np.ndarray, num_clases:int) -> tuple[np.ndarray, np
     Y_train_cat = to_categorical(Y_train, num_classes=num_clases) # representa los datos en formato one-hot encoding  legible para el modelo
     Y_test_cat  = to_categorical(Y_test, num_classes=num_clases) 
 
-    print(Y_train)
-    print(Y_train_cat)
-
+    print("X_train shape:", X_train.shape)
+    print("X_test shape:", X_test.shape)
+    print("Y_train_cat shape:", Y_train_cat.shape)
+    print("Y_test_cat shape:", Y_test_cat.shape)
     return X_train, X_test, Y_train_cat, Y_test_cat
     
 if __name__ == "__main__":
