@@ -81,7 +81,7 @@ def procesar(X:np.ndarray, Y:np.ndarray, num_clases:int) -> tuple[np.ndarray, np
     print("Y_test_cat shape:", Y_test_cat.shape)
     return X_train, X_test, Y_train_cat, Y_test_cat
 
-def construir_modelo(input_shape: tuple[int, int], num_classes: int) -> Sequential:
+def construir_modelo(input_shape: tuple[int, ...], num_classes: int) -> Sequential:
     """Assemble, compile, and return the LSTM model architecture."""
     model = Sequential() # Se inicializa el modelo secuencial de keras
     
@@ -106,6 +106,12 @@ def construir_modelo(input_shape: tuple[int, int], num_classes: int) -> Sequenti
     return model
     
 if __name__ == "__main__":
-    X,Y,gestos = cargar_dataset()
-    procesar(X, Y, len(gestos))
-    print(gestos)
+    X, Y, gestos = cargar_dataset()
+    
+    X_train, X_test, Y_train_cat, Y_test_cat = procesar(X, Y, len(gestos))
+    
+    input_shape = X_train.shape[1:]
+    num_classes = len(gestos)
+    
+    model = construir_modelo(input_shape, num_classes)
+   
