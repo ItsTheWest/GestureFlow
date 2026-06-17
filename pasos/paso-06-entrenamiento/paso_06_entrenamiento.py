@@ -2,8 +2,8 @@ import tensorflow as tf
 from pathlib import Path
 import numpy as np
 
-from sklearn.model_selection import train_test_split
-from keras.utils import to_categorical
+from sklearn.model_selection import train_test_split #para dividir los datos en conjuntos de entrenamiento y prueba
+from keras.utils import to_categorical #para convertir los datos a one-hot encoding
 
 GESTOS_DIR = Path("gestos")
 
@@ -63,13 +63,22 @@ def cargar_dataset() -> tuple[np.ndarray, np.ndarray, list[str]]:
 
     return X, Y, gestos # Se retorna la lista X, la lista Y y la lista gestos
 
-def procesar(X:np.ndarray, Y:np.ndarray, num_clases:int):
+def procesar(X:np.ndarray, Y:np.ndarray, num_clases:int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     X_train, X_test, Y_train, Y_test = train_test_split(
     X, Y, 
     test_size=TEST_SIZE,  # se reserva el 20% porciento de modelo para probar y el restante para el entrenamiento
     random_state=RANDOM_STATE, 
-    stratify=Y) 
+    stratify=Y) # estratificación para asegurar que las proporciones de clases sean iguales en ambos conjuntos
+
+    Y_train_cat = to_categorical(Y_train, num_classes=num_clases) # representa los datos en formato one-hot encoding  legible para el modelo
+    Y_test_cat  = to_categorical(Y_test, num_classes=num_clases) 
+
+    print(Y_train)
+    print(Y_train_cat)
+
+    return X_train, X_test, Y_train_cat, Y_test_cat
     
 if __name__ == "__main__":
     X,Y,gestos = cargar_dataset()
+    procesar(X, Y, len(gestos))
     print(gestos)
