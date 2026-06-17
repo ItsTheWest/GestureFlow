@@ -82,7 +82,11 @@ def procesar(X:np.ndarray, Y:np.ndarray, num_clases:int) -> tuple[np.ndarray, np
     return X_train, X_test, Y_train_cat, Y_test_cat
 
 def construir_modelo(input_shape, num_classes):
-    pass
+    model = Sequential() # Se inicializa el modelo secuencial de keras
+    model.add(LSTM(64,return_sequence=True,input_shape=input_shape)) # Se agrega la capa LSTM con 64 neuronas y se especifica la forma de la entrada
+    model.add(Dropout(0.2)) # Se agrega una capa dropout con una tasa de dropout del 20% 
+    model.add(Dense(num_classes,activacion='softmax')) # Se agrega la capa de salida con el numero de neuronas igual al numero de clases y se especifica la funcion de activacion softmax
+    
     
 if __name__ == "__main__":
     X,Y,gestos = cargar_dataset()
