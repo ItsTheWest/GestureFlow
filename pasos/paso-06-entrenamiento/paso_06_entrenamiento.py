@@ -4,6 +4,8 @@ import numpy as np
 
 from sklearn.model_selection import train_test_split #para dividir los datos en conjuntos de entrenamiento y prueba
 from keras.utils import to_categorical #para convertir los datos a one-hot encoding
+from keras.models import Sequential
+from keras.layers import LSTM, Dense, Dropout
 
 GESTOS_DIR = Path("gestos")
 
@@ -78,6 +80,9 @@ def procesar(X:np.ndarray, Y:np.ndarray, num_clases:int) -> tuple[np.ndarray, np
     print("Y_train_cat shape:", Y_train_cat.shape)
     print("Y_test_cat shape:", Y_test_cat.shape)
     return X_train, X_test, Y_train_cat, Y_test_cat
+
+def construir_modelo(input_shape, num_classes):
+    pass
     
 if __name__ == "__main__":
     X,Y,gestos = cargar_dataset()
