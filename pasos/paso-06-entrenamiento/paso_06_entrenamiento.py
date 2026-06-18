@@ -122,7 +122,17 @@ def entrenar_modelo(model: Sequential, X_train: np.ndarray, Y_train_cat: np.ndar
     mode='auto', # Se define el modo de guardado (en este caso, auto, esto quiere decir que se guardara el modelo si la metrica monitoreada mejora)
     save_freq='epoch' # Se define la frecuencia de guardado (en este caso, cada epoch osea cada pasada por los datos)
    )) 
+   history = model.fit(
+    X_train, Y_train_cat, # Se define los datos de entrenamiento
+    validation_data=(X_test, Y_test_cat), # Se define los datos de prueba
+    epochs=EPOCHS, # Se define el numero de epochs
+    batch_size=BATCH_SIZE, # Se define el tamaño del batch
+    callbacks=callback, # Se define la lista de callbacks
+    verbose=2 # Se habilita el verbose (el dos nos ayuda a ver el entrenamiento con una barra de progreso)
+    )
 
+def evaluar(model: Sequential, X_test: np.ndarray, Y_test_cat: np.ndarray) -> None:
+   """Evaluate the model on the test dataset."""
    pass
 
 
