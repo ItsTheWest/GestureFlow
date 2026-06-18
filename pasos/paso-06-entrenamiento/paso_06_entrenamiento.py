@@ -1,12 +1,12 @@
-import tensorflow as tf
 from pathlib import Path
-import numpy as np
 
+import numpy as np
 from sklearn.model_selection import train_test_split #para dividir los datos en conjuntos de entrenamiento y prueba
-from keras.utils import to_categorical #para convertir los datos a one-hot encoding
-from keras.models import Sequential
-from keras.layers import LSTM, Dense, Dropout
+import tensorflow as tf
 from keras.callbacks import EarlyStopping, ModelCheckpoint #para el monitoreo y control del entrenamiento
+from keras.layers import LSTM, Dense, Dropout
+from keras.models import Sequential
+from keras.utils import to_categorical #para convertir los datos a one-hot encoding
 
 GESTOS_DIR = Path("gestos")
 
@@ -111,9 +111,19 @@ def construir_modelo(input_shape: tuple[int, ...], num_classes: int) -> Sequenti
     return model
 
 def entrenar_modelo(model: Sequential, X_train: np.ndarray, Y_train_cat: np.ndarray, X_test: np.ndarray, Y_test_cat: np.ndarray) -> None:
-   callback = []
-   callback.append(EarlyStopping(monitor="val_acuraccy",patience=EPOCHS))
-pass
+   callback = [] # Se inicializa la lista de callbacks
+   callback.append(EarlyStopping(monitor="val_accuracy",patience=EPOCHS,restore_best_weights=True)) # Se agrega el callback de early stopping
+   callback.append(ModelCheckpoint(
+    filepath=MODEL_PATH, # Se define la ruta donde se guardara el modelo
+    monitor='val_accuracy', # Se define la metrica a monitorear
+    verbose=1, # Se habilita el verbose (sirve para que se muestre informacion sobre el entrenamiento)
+    save_best_only=True, # Se guarda solo el mejor modelo
+    save_weights_only=False, # Se guardan los pesos del modelo
+    mode='auto', # Se define el modo de guardado (en este caso, auto, esto quiere decir que se guardara el modelo si la metrica monitoreada mejora)
+    save_freq='epoch' # Se define la frecuencia de guardado (en este caso, cada epoch osea cada pasada por los datos)
+   )) 
+
+   pass
 
 
 
