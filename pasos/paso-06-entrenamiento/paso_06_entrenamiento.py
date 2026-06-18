@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split #para dividir los datos en 
 from keras.utils import to_categorical #para convertir los datos a one-hot encoding
 from keras.models import Sequential
 from keras.layers import LSTM, Dense, Dropout
+from keras.callbacks import EarlyStopping, ModelCheckpoint #para el monitoreo y control del entrenamiento
 
 GESTOS_DIR = Path("gestos")
 
@@ -15,6 +16,10 @@ NUM_FEATURES = 126 #Se define el numero de caracteristicas
 
 TEST_SIZE    = 0.20 #Se define el tamaño del conjunto de prueba
 RANDOM_STATE = 42 #Se define la semilla para la generacion de numeros aleatorios
+
+EPOCHS     = 100 #Numero de epochs (los epochs son las veces que el modelo se entrenara con los datos)
+BATCH_SIZE = 32 #Tamaño del batch (el batch es el numero de muestras que se procesaran al mismo tiempo)
+MODEL_PATH = Path("modelos/lstm_gestos.keras") #Ruta donde se guardara el modelo
 
 def cargar_dataset() -> tuple[np.ndarray, np.ndarray, list[str]]:
     if not GESTOS_DIR.exists(): #Se evalua si la carpeta con gestos existe
@@ -97,14 +102,22 @@ def construir_modelo(input_shape: tuple[int, ...], num_classes: int) -> Sequenti
     model.add(Dense(32, activation='relu')) # Capa intermedia oculta para refinar características
     model.add(Dense(num_classes, activation='softmax')) # Capa de salida con activación softmax para las probabilidades de clase
     
-    # Compilación del modelo
+    # Compilación del modelo en el que se define la funcion de perdida y el optimizador
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     
     # Mostrar resumen del modelo en consola
     model.summary()
     
     return model
-    
+
+def entrenar_modelo(model: Sequential, X_train: np.ndarray, Y_train_cat: np.ndarray, X_test: np.ndarray, Y_test_cat: np.ndarray) -> None:
+   callback = []
+   callback.append(EarlyStopping(monitor="val_acuraccy",patience=EPOCHS))
+pass
+
+
+
+
 if __name__ == "__main__":
     X, Y, gestos = cargar_dataset()
     
