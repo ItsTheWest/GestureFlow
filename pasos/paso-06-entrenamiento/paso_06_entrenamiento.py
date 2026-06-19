@@ -1,12 +1,12 @@
-from pathlib import Path
-
-import numpy as np
-from sklearn.model_selection import train_test_split #para dividir los datos en conjuntos de entrenamiento y prueba
 import tensorflow as tf
-from keras.callbacks import EarlyStopping, ModelCheckpoint #para el monitoreo y control del entrenamiento
-from keras.layers import LSTM, Dense, Dropout
-from keras.models import Sequential
+from pathlib import Path
+import numpy as np
+
+from sklearn.model_selection import train_test_split #para dividir los datos en conjuntos de entrenamiento y prueba
 from keras.utils import to_categorical #para convertir los datos a one-hot encoding
+from keras.models import Sequential
+from keras.layers import LSTM, Dense, Dropout
+from keras.callbacks import EarlyStopping, ModelCheckpoint #para el monitoreo y control del entrenamiento
 
 GESTOS_DIR = Path("gestos")
 
@@ -132,10 +132,10 @@ def entrenar_modelo(model: Sequential, X_train: np.ndarray, Y_train_cat: np.ndar
     )
 
 def evaluar(model: Sequential, X_test: np.ndarray, Y_test_cat: np.ndarray) -> None:
-   """Evaluate the model on the test dataset."""
+   loss, accuracy = model.evaluate(X_test, Y_test_cat, verbose=0)
+   print(f"Loss: {loss}, Accuracy: {accuracy}")
+    
    pass
-
-
 
 
 if __name__ == "__main__":
@@ -147,4 +147,5 @@ if __name__ == "__main__":
     num_classes = len(gestos)
     
     model = construir_modelo(input_shape, num_classes)
-   
+    entrenar_modelo(model, X_train, Y_train_cat, X_test, Y_test_cat)
+    evaluar(model, X_test, Y_test_cat)
