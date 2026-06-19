@@ -7,6 +7,8 @@ from keras.utils import to_categorical #para convertir los datos a one-hot encod
 from keras.models import Sequential
 from keras.layers import LSTM, Dense, Dropout
 from keras.callbacks import EarlyStopping, ModelCheckpoint #para el monitoreo y control del entrenamiento
+from sklearn.metrics import classification_report
+
 
 GESTOS_DIR = Path("gestos")
 
@@ -133,10 +135,15 @@ def entrenar_modelo(model: Sequential, X_train: np.ndarray, Y_train_cat: np.ndar
 
 def evaluar(model: Sequential, X_test: np.ndarray, Y_test_cat: np.ndarray) -> None:
    loss, accuracy = model.evaluate(X_test, Y_test_cat, verbose=0)
-   print(f"Loss: {loss}, Accuracy: {accuracy}")
-    
-   pass
+   print(f"Loss: {loss:.4f}, Accuracy: {accuracy:.4f}")
+   
 
+def evaluar_f1(model: Sequential, X_test: np.ndarray, Y_test_cat: np.ndarray, gestos: list[str]) -> None:
+    predictions=model.predict(X_test)
+    predicciones_clase = np.argmax(predictions, axis=1)
+    y_true = np.argmax(Y_test_cat, axis=1)
+    print(classification_report(y_true, predicciones_clase, target_names=gestos))
+    
 
 if __name__ == "__main__":
     X, Y, gestos = cargar_dataset()
