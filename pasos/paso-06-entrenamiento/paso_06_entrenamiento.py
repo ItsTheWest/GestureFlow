@@ -23,6 +23,12 @@ EPOCHS     = 100 #Numero de epochs (los epochs son las veces que el modelo se en
 BATCH_SIZE = 32 #Tamaño del batch (el batch es el numero de muestras que se procesaran al mismo tiempo)
 MODEL_PATH = Path("modelos/lstm_gestos.keras") #Ruta donde se guardara el modelo
 
+def verificar_entorno() -> None:
+    """Print TF version and list available physical devices."""
+    print(f"TensorFlow version: {tf.__version__}")
+    dispositivos = tf.config.list_physical_devices()
+    print(f"Dispositivos físicos encontrados: {dispositivos}")
+
 def cargar_dataset() -> tuple[np.ndarray, np.ndarray, list[str]]:
     if not GESTOS_DIR.exists(): #Se evalua si la carpeta con gestos existe
         raise FileNotFoundError(f"Gestos no encontrados:{GESTOS_DIR}")
