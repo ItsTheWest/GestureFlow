@@ -1,8 +1,8 @@
 # Documentación: Paso 03 — Tiempo real (`paso_03_tiempo_real.py`)
 
-**Último paso** de la ruta `pasos/`: detección de manos **en cada frame** con MediaPipe en modo `LIVE_STREAM`, sin pulsar ESPACIO.
+Detección de manos **en cada frame** con MediaPipe en modo `LIVE_STREAM` de forma asíncrona, eliminando la necesidad de presionar ESPACIO.
 
-**Patrones compartidos:** [REFERENCIA_COMUN.md](../REFERENCIA_COMUN.md).
+Para conocer en detalle los conceptos de ejecución en tiempo real, callbacks, timestamps crecientes y el control de flujo para evitar colas de fotogramas, consulta la [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -24,22 +24,18 @@
 
 ## 1. Objetivo del paso
 
-**Objetivo:** vídeo en espejo con el esqueleto de la mano **actualizándose mientras mueves la mano**, usando `detect_async` y un `result_callback`.
+**Objetivo:** obtener un flujo de vídeo en modo espejo donde el esqueleto de la mano **se actualiza e interactúa en tiempo real**, utilizando `detect_async` y una función callback `on_result` para sincronizar las detecciones.
 
-| Incluido | Ya no hace falta |
-|----------|------------------|
-| `RunningMode.LIVE_STREAM` | Pulsar ESPACIO por frame |
-| `result_callback` → `ultimo_resultado` | `waitKey(0)` tras detectar |
-| `detect_async` cada iteración | `detect()` síncrono |
-| Espejo, `q`, dibujo landmarks | — |
+| Incluido en este script | Ya no hace falta |
+|-------------------------|------------------|
+| `RunningMode.LIVE_STREAM` | Pulsar ESPACIO para procesar |
+| `result_callback` → `ultimo_resultado` | `cv2.waitKey(0)` (pausas) |
+| `detect_async` asíncrono cada frame | `detect()` síncrono bloqueante |
 
 **Criterio de éxito:**
-
-- Al mover la mano, las líneas y puntos **siguen** el movimiento (pequeño retardo normal).
-- **Q** cierra sin error.
-- Sin mano en cuadro, el vídeo sigue fluido.
-
-**Requisito previo:** [Paso 02](../paso-02-dibujo/paso_02_doc.md) funcionando al menos una vez (modelo + dibujo).
+- Al mover la mano frente a la cámara, el esqueleto de marcas dibujado **sigue** el movimiento fluido en pantalla.
+- La tecla **Q** interrumpe el bucle y cierra las ventanas inmediatamente.
+- Sin manos visibles, el vídeo de la cámara sigue reproduciéndose a su tasa normal de FPS.
 
 ---
 
@@ -47,12 +43,10 @@
 
 | Archivo | Rol |
 |---------|-----|
-| `paso_03_tiempo_real.py` | Script final de la ruta `pasos/` |
-| `paso_03_doc.md` | Esta documentación |
+| [paso_03_tiempo_real.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-03-tiempo-real/paso_03_tiempo_real.py) | Script final de la ruta básica `pasos/` |
+| [paso_03_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-03-tiempo-real/paso_03_doc.md) | Esta documentación |
 
-**También en `pasos/`:** [REFERENCIA_COMUN.md](../REFERENCIA_COMUN.md).
-
-**Dependencias:** igual que paso 2 + modelo en `prueba/hand_landmarker.task`.
+**Glosario y conceptos comunes:** [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -63,14 +57,14 @@
 2. HandLandmarker (LIVE_STREAM + result_callback)
 3. ultimo_resultado = None
 4. while True:
-     read → flip
-     display = copia
-     si ultimo_resultado → dibujar_manos(display, ultimo_resultado)
-     putText + imshow(display)
-     mp.Image RGB del frame actual
-     detect_async(mp_image, timestamp_ms creciente)
-     waitKey(1) → si 'q', break
-5. release + destroyAllWindows
+5.      read → flip
+6.      display = copia
+7.      si ultimo_resultado → dibujar_manos(display, ultimo_resultado)
+8.      putText + imshow(display)
+9.      mp.Image RGB del frame actual
+10.     detect_async(mp_image, timestamp_ms creciente)
+11.     waitKey(1) → si 'q', break
+12. release + destroyAllWindows
 ```
 
 ```mermaid
@@ -87,111 +81,48 @@ flowchart LR
 
 ## 4. Importaciones y variables
 
-| Import / símbolo | Rol |
-|------------------|-----|
-| Mismos que paso 2 | `cv2`, MediaPipe Tasks, `Path`, protobuf |
-| `ultimo_resultado` | Último `HandLandmarkerResult` del callback |
-| `on_result` | Guarda resultado cuando termina la inferencia |
-| `frame_index` | Contador para timestamp creciente |
-| `display` | Copia donde se dibuja (no alterar `frame` de captura) |
-| `frame` | Frame volteado enviado a `detect_async` |
+Para conocer las dependencias comunes y su rol conceptual en el procesamiento de landmarks, consulta la [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
 
-| Paso 2 | Paso 3 |
-|--------|--------|
-| `RunningMode.IMAGE` | `RunningMode.LIVE_STREAM` |
-| `detect()` | `detect_async()` |
-| `results` inmediato | `ultimo_resultado` vía callback |
+### Tabla de variables específicas
 
-Tabla completa: [REFERENCIA_COMUN.md §7](../REFERENCIA_COMUN.md#7-modos-image-vs-live_stream).
+| Variable | Rol | Concepto General |
+|----------|-----|------------------|
+| `ultimo_resultado` | Almacena de forma global la última inferencia entregada por el callback. | [REF §3.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode) |
+| `on_result` | Función callback llamada automáticamente por MediaPipe al terminar una detección. | [REF §3.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode) |
+| `frame_index` | Contador secuencial utilizado en este paso para calcular el timestamp. | Control temporal local |
+| `display` | Copia de visualización sobre la cual se dibujan las marcas. | Aislamiento del buffer local |
 
 ---
 
 ## 5. Bloques del código
 
-### `ultimo_resultado` y `on_result`
+### Callback `on_result`
+Guarda de forma asíncrona los resultados en `ultimo_resultado`. Dado que la inferencia corre en un hilo separado de CPU, dibujamos el último resultado disponible sobre el frame actual en pantalla. Ver detalle de esta arquitectura en [REF §3.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode).
 
-```python
-ultimo_resultado = None
+### Inferencia Asíncrona (`detect_async`)
+Convierte a RGB y empaqueta en `mp.Image`. Ver [REF §3.2](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#32-espacio-de-color-bgr-a-rgb-mpimage). Llama a `detect_async` pasando un timestamp estrictamente creciente. Ver explicación en [REF §3.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode).
 
-def on_result(result, output_image, timestamp_ms):
-    global ultimo_resultado
-    ultimo_resultado = result
-```
+### Control de colas y rendimiento (Evitar lag)
+Aunque en este script inicial se envía inferencia en cada iteración del bucle, en scripts interactivos avanzados se utilizan variables como `listo_para_inferir` y técnicas de redimensionamiento de imagen (`ANCHO_INFERENCIA`) para evitar retrasos acumulados. Ver detalles de optimización en [REF §3.4](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#34-control-de-flujo-de-inferencia-asíncrona).
 
-MediaPipe puede ejecutar el callback **después** de mostrar el frame; dibujas el **último** resultado conocido sobre el frame **actual** (patrón simple recomendado).
-
-### `HandLandmarker` con `LIVE_STREAM`
-
-```python
-options = vision.HandLandmarkerOptions(
-    ...,
-    running_mode=vision.RunningMode.LIVE_STREAM,
-    result_callback=on_result,
-)
-```
-
-Sin `result_callback`, LIVE_STREAM no entrega resultados al bucle principal.
-
-### Bucle: `display` vs `frame`
-
-- `frame`: volteado; base para `mp.Image` y `detect_async`.
-- `display`: copia donde `dibujar_manos` no pisa el buffer de captura.
-
-### Sin cola de frames (`listo_para_inferir`)
-
-Si envías `detect_async` en **cada** vuelta del bucle y la CPU va más lenta que la cámara, MediaPipe acumula frames viejos: el dibujo va **varios frames detrás** de la mano.
-
-```python
-listo_para_inferir = True  # al terminar on_result, vuelve a True
-
-# En el bucle: solo enviar si el callback ya devolvió el resultado anterior
-if listo_para_inferir:
-    listo_para_inferir = False
-    landmarker.detect_async(mp_image, timestamp_ms)
-```
-
-Así siempre procesas el frame **más reciente** posible, no una cola de 5–10 frames atrás.
-
-### Timestamp real y resolución baja para inferencia
-
-```python
-timestamp_ms = int((time.perf_counter() - inicio) * 1000)
-pequeno = frame_para_inferencia(frame)  # p. ej. ancho 320 px
-```
-
-- El timestamp debe **subir** con el reloj real, no con `frame_index * 33` fijo (si el bucle va a 60 FPS pero marcas 30 FPS, se desincroniza).
-- La inferencia usa un frame **reducido**; los landmarks son normalizados (0–1), así que se dibujan bien en el `display` a tamaño completo.
-- La cámara se pide a 640×480 para captura más ligera.
-
-### `dibujar_manos`
-
-Igual que paso 2, con comprobación extra: `if not results or not results.hand_landmarks`.
+### Dibujo de Landmarks (`dibujar_manos`)
+Pinta in-place sobre `display`. Ver explicación de conversión a Protobuf en [REF §4.1](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#41-dibujo-de-landmarks-dibujar_manos).
 
 ---
 
 ## 6. OpenCV, teclas y ventana
 
-| Tecla | Acción |
-|-------|--------|
-| **Q** | Salir del programa |
-
-| OpenCV | Uso |
-|--------|-----|
-| `imshow("Paso 03 - Tiempo real", display)` | Vídeo + esqueleto |
-| `waitKey(1)` | Bucle fluido (sin `waitKey(0)`) |
-| `putText` | `Tiempo real \| Q: salir` |
+- **Q**: Termina la ejecución y limpia todos los recursos de cámara y visualización.
+- **cv2.waitKey(1)**: Es fundamental para garantizar que el bucle de vídeo sea fluido a ~30 FPS sin bloquear la CPU. Ver [REF §2.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#23-refresco-y-detección-de-teclado-cv2waitkey).
 
 ---
 
 ## 7. Consola: qué logs verás
 
-| Momento | Mensaje |
-|---------|---------|
-| Al iniciar | `Deteccion en tiempo real \| Q = salir` |
-| Error de lectura | `Error: No se pudo leer el frame` |
-| Modelo ausente | `FileNotFoundError` con ruta a `MODEL_PATH` |
-
-No hay log por cada detección (evita saturar la terminal). El feedback principal es visual en la ventana.
+```text
+Deteccion en tiempo real | Q = salir
+```
+*(No se imprimen logs por cada frame para no saturar la terminal; el feedback es completamente visual).*
 
 ---
 
@@ -199,140 +130,31 @@ No hay log por cada detección (evita saturar la terminal). El feedback principa
 
 Desde la raíz del proyecto, con `venv` activado:
 
-```powershell
+```bash
 python pasos/paso-03-tiempo-real/paso_03_tiempo_real.py
 ```
-
-| En pantalla | Comportamiento |
-|-------------|----------------|
-| `Paso 03 - Tiempo real` | Vídeo espejo + esqueleto en movimiento |
-| Texto verde | `Tiempo real \| Q: salir` |
 
 ---
 
 ## 9. Errores frecuentes
 
-| Síntoma | Qué revisar |
-|---------|-------------|
-| Error al crear landmarker LIVE_STREAM | ¿`result_callback` definido? |
-| No dibuja nunca | BGR→RGB, callback, mano en cuadro |
-| Dibujo “saltado” o congelado | ¿`timestamp_ms` sube con `time.perf_counter()`? |
-| **Mucho retardo** respecto a la mano | ¿Envías `detect_async` cada frame sin esperar callback? Usa `listo_para_inferir` y `ANCHO_INFERENCIA` |
-| Muy lento | CPU + resolución; cierra otras apps |
-| Crash al salir | `release()` y salir del `with landmarker` |
-
-Más: [REFERENCIA_COMUN.md §9](../REFERENCIA_COMUN.md#9-errores-frecuentes-todos-los-pasos).
+Si experimentas retardo acumulado, parpadeos en el dibujo o fallas al cerrar la ventana, consulta la **Tabla de Errores Frecuentes Unificada** en la [Sección 6 de REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
 
 ---
 
 ## 10. ¿Qué sigue después?
 
-Has cerrado la ruta **cámara (01) → foto a foto (02) → tiempo real (03)**.
+Has completado la ruta inicial de visión interactiva:
+1. **Paso 01**: Acceso básico a la cámara.
+2. **Paso 02**: Inferencia síncrona en modo `IMAGE` por evento de teclado.
+3. **Paso 03**: Inferencia asíncrona continua en tiempo real `LIVE_STREAM`.
 
-Mejoras opcionales:
-
-- FPS en pantalla (`putText` + contador de tiempo).
-- Elegir índice de cámara con `sys.argv`.
-- Mover lógica a `src/` y reconocer **gestos** sobre landmarks.
-
-Para repasar Fase 0 (imagen fija): [DOCUMENTACION_PRUEBA.md](../../prueba/DOCUMENTACION_PRUEBA.md).
+**Siguiente etapa del proyecto**:
+- **Paso 04**: Procesamiento algebraico / analítico sobre los landmarks detectados para clasificar gestos estáticos simples (reconocimiento de vocales).
+- **Paso 05**: Recopilación secuencial de movimiento para entrenar modelos de Inteligencia Artificial para gestos dinámicos.
 
 ---
 
 ## 11. Referencia del código fuente
 
-```1:98:pasos/paso-03-tiempo-real/paso_03_tiempo_real.py
-import cv2
-import mediapipe as mp
-from mediapipe.tasks import python
-from mediapipe.tasks.python import vision
-from mediapipe.framework.formats import landmark_pb2
-from pathlib import Path
-
-SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parent.parent
-MODEL_PATH = PROJECT_ROOT / "prueba" / "hand_landmarker.task"
-
-ultimo_resultado = None
-
-def on_result(result, output_image, timestamp_ms):
-    global ultimo_resultado
-    ultimo_resultado = result
-
-def dibujar_manos(frame, results):
-    if not results or not results.hand_landmarks:
-        return False
-    for hand_landmarks in results.hand_landmarks:
-        hand_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
-        hand_landmarks_proto.landmark.extend([
-            landmark_pb2.NormalizedLandmark(x=lm.x, y=lm.y, z=lm.z)
-            for lm in hand_landmarks
-        ])
-        mp.solutions.drawing_utils.draw_landmarks(
-            frame,
-            hand_landmarks_proto,
-            mp.solutions.hands.HAND_CONNECTIONS,
-            mp.solutions.drawing_styles.get_default_hand_landmarks_style(),
-            mp.solutions.drawing_styles.get_default_hand_connections_style(),
-        )
-    return True
-
-if not MODEL_PATH.is_file():
-    raise FileNotFoundError(f"No se encontro el modelo: {MODEL_PATH}")
-
-cap = cv2.VideoCapture(0)
-if not cap.isOpened():
-    print("Error: No se pudo abrir la camara")
-    exit(1)
-
-base_options = python.BaseOptions(model_asset_path=str(MODEL_PATH))
-options = vision.HandLandmarkerOptions(
-    base_options=base_options,
-    running_mode=vision.RunningMode.LIVE_STREAM,
-    num_hands=2,
-    result_callback=on_result,
-)
-
-with vision.HandLandmarker.create_from_options(options) as landmarker:
-    print("Deteccion en tiempo real | Q = salir")
-    frame_index = 0
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            print("Error: No se pudo leer el frame")
-            break
-
-        frame = cv2.flip(frame, 1)
-        display = frame.copy()
-
-        if ultimo_resultado is not None:
-            dibujar_manos(display, ultimo_resultado)
-
-        cv2.putText(
-            display,
-            "Tiempo real | Q: salir",
-            (10, 30),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (0, 255, 0),
-            2,
-        )
-        cv2.imshow("Paso 03 - Tiempo real", display)
-
-        mp_image = mp.Image(
-            image_format=mp.ImageFormat.SRGB,
-            data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
-        )
-        frame_index += 1
-        timestamp_ms = frame_index * 33
-        landmarker.detect_async(mp_image, timestamp_ms)
-
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
-
-cap.release()
-cv2.destroyAllWindows()
-```
-
-*Fuente de verdad: el archivo `.py` en disco. El script en disco puede tener líneas en blanco extra entre bloques; la lógica coincide con el listado anterior.*
+El script completo vive en [paso_03_tiempo_real.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-03-tiempo-real/paso_03_tiempo_real.py).

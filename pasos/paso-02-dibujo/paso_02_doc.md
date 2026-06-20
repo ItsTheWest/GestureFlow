@@ -1,8 +1,8 @@
 # Documentación: Paso 02 — Dibujo con ESPACIO (`paso_02_dibujo.py`)
 
-Puente entre **cámara en vivo** (paso 1) y **detección continua** (paso 3): al pulsar **ESPACIO** congelas un frame, lo procesas con MediaPipe en modo **IMAGE** (como `prueba.py`) y dibujas el esqueleto de la mano.
+Puente entre **cámara en vivo** (paso 1) y **detección continua** (paso 3): al pulsar **ESPACIO** congelas un frame, lo procesas con MediaPipe en modo **IMAGE** (síncrono) y dibujas el esqueleto de la mano.
 
-**Patrones compartidos** (rutas, BGR→RGB, dibujo, modelo): [REFERENCIA_COMUN.md](../REFERENCIA_COMUN.md).
+Para conocer en detalle los conceptos de rutas, configuración del modelo, espacio de color y dibujo de landmarks, consulta la [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -24,23 +24,20 @@ Puente entre **cámara en vivo** (paso 1) y **detección continua** (paso 3): al
 
 ## 1. Objetivo del paso
 
-**Objetivo:** mantener el vídeo en vivo del paso 1 y, al pulsar **ESPACIO**, congelar un frame, detectar hasta 2 manos con `HandLandmarker` en modo `IMAGE`, dibujar landmarks y pausar hasta otra tecla.
+**Objetivo:** mantener el vídeo en vivo del paso 1 y, al pulsar **ESPACIO**, congelar un frame, detectar hasta 2 manos con `HandLandmarker` en modo `IMAGE`, dibujar landmarks y pausar la pantalla hasta presionar otra tecla.
 
-| Incluido | No incluido (paso 3) |
-|----------|----------------------|
+| Incluido en este script | No incluido (paso 3) |
+|-------------------------|----------------------|
 | MediaPipe + modelo `.task` | `RunningMode.LIVE_STREAM` |
 | `detect()` síncrono | `detect_async()` |
-| Dibujo con ESPACIO | Dibujo en cada frame sin tecla |
+| Dibujo con ESPACIO | Detección en cada frame sin pausar |
 | Espejo + bucle + `q` | Callback `on_result` |
 
 **Criterio de éxito:**
-
-- Vídeo fluido con texto de ayuda.
-- Con la mano visible, **ESPACIO** muestra círculos y líneas del esqueleto.
-- Consola: `Manos detectadas: N` o `No se detectaron manos`.
-- **Q** cierra sin colgar.
-
-**Requisito previo:** [Paso 01](../paso-01-camara/paso_01_doc.md) funcionando (cámara + espejo + `q`).
+- Vídeo fluido con texto de ayuda en vivo.
+- Con la mano visible, al pulsar **ESPACIO** se congela el frame y muestra círculos y líneas del esqueleto de la mano.
+- Consola: logs detallados `Manos detectadas: N` o `No se detectaron manos`.
+- **Q** cierra la aplicación sin colgarse.
 
 ---
 
@@ -48,14 +45,10 @@ Puente entre **cámara en vivo** (paso 1) y **detección continua** (paso 3): al
 
 | Archivo | Rol |
 |---------|-----|
-| `paso_02_dibujo.py` | Script del paso |
-| `paso_02_doc.md` | Esta documentación |
+| [paso_02_dibujo.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-02-dibujo/paso_02_dibujo.py) | Script del paso |
+| [paso_02_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-02-dibujo/paso_02_doc.md) | Esta documentación |
 
-**También en `pasos/`:** [REFERENCIA_COMUN.md](../REFERENCIA_COMUN.md).
-
-**Dependencias:** `opencv-python`, `mediapipe` (ver `requirements.txt`).
-
-**Necesitas:** `prueba/hand_landmarker.task` (mismo que Fase 0).
+**Glosario y conceptos comunes:** [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -66,17 +59,17 @@ Puente entre **cámara en vivo** (paso 1) y **detección continua** (paso 3): al
 2. VideoCapture(0)
 3. HandLandmarker (RunningMode.IMAGE)
 4. while True:
-     read → flip
-     preview = copia del frame (sin dibujo)
-     imshow(preview) + waitKey(1)
-     si 'q' → break
-     si ESPACIO:
-         snapshot = copia
-         BGR → RGB → mp.Image
-         results = detect(snapshot)
-         dibujar_manos(snapshot, results)
-         imshow(snapshot) + waitKey(0)   ← pausa
-5. release + destroyAllWindows
+5.      read → flip
+6.      preview = copia del frame (sin dibujo)
+7.      imshow(preview) + waitKey(1)
+8.      si 'q' → break
+9.      si ESPACIO:
+10.         snapshot = copia
+11.         BGR → RGB → mp.Image
+12.         results = detect(snapshot)
+13.         dibujar_manos(snapshot, results)
+14.         imshow(snapshot) + waitKey(0)   ← pausa
+15. release + destroyAllWindows
 ```
 
 ```mermaid
@@ -94,96 +87,50 @@ flowchart TD
 
 ## 4. Importaciones y variables
 
-| Import / símbolo | Rol |
-|------------------|-----|
-| `cv2` | Cámara, flip, ventanas, BGR→RGB |
-| `mediapipe` / `vision` | `HandLandmarker`, `RunningMode.IMAGE` |
-| `landmark_pb2` | Formato para `draw_landmarks` |
-| `Path` | Rutas absolutas al modelo |
+Para conocer la descripción y por qué se importa cada biblioteca de visión y procesamiento, consulta la [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
 
-| Variable | Valor / uso |
-|----------|-------------|
-| `SCRIPT_DIR` | Carpeta `paso-02-dibujo/` |
-| `PROJECT_ROOT` | Raíz `GestureFlow/` (dos niveles arriba) |
-| `MODEL_PATH` | `prueba/hand_landmarker.task` |
-| `preview` | Copia para vídeo en vivo sin landmarks |
-| `snapshot` | Frame congelado al pulsar ESPACIO |
+### Tabla de variables específicas
 
-Detalle de rutas, modelo y dibujo: [REFERENCIA_COMUN.md §2–6](../REFERENCIA_COMUN.md#2-rutas-con-path).
+| Variable | Rol | Concepto General |
+|----------|-----|------------------|
+| `preview` | Copia del frame para vídeo en vivo sin dibujo. | Específico de la UI local |
+| `snapshot` | Frame congelado al pulsar ESPACIO sobre el cual se realiza inferencia. | Específico de la lógica de foto-congelada |
+| `SCRIPT_DIR`, `PROJECT_ROOT`, `MODEL_PATH` | Resolución de rutas absolutas al modelo. | [REF §1.2](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#12-rutas-con-path-pathlibpath) |
+| `landmarker` | Detector de marcas de manos de MediaPipe. | [REF §3.1](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#31-carga-del-modelo-handlandmarkeroptions-y-baseoptions) |
 
 ---
 
 ## 5. Bloques del código
 
-### `dibujar_manos(frame, results)`
+### Dibujo de manos (`dibujar_manos`)
+Dibuja el esqueleto sobre el lienzo. La conversión de landmarks a protobuf y la función interna de graficado se explican en [REF §4.1](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#41-dibujo-de-landmarks-dibujar_manos).
 
-Convierte cada mano a protobuf y llama a `draw_landmarks` **in-place** sobre `frame`. Devuelve `False` si no hay `hand_landmarks`. Ver [REF §6](../REFERENCIA_COMUN.md#6-dibujar-landmarks).
+### HandLandmarker con modo `IMAGE`
+Configura el modelo en modo síncrono. Puedes ver la tabla comparativa de modos en [REF §3.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode).
 
-### Comprobación del modelo y cámara
-
-Igual patrón que paso 1: `MODEL_PATH.is_file()` antes de abrir la cámara; `VideoCapture(0)` + `isOpened()`.
-
-### `HandLandmarker` con `IMAGE`
-
-```python
-options = vision.HandLandmarkerOptions(
-    base_options=base_options,
-    running_mode=vision.RunningMode.IMAGE,
-    num_hands=2,
-)
-```
-
-Modo síncrono: un frame por llamada a `detect()`. Tabla IMAGE vs LIVE_STREAM: [REF §7](../REFERENCIA_COMUN.md#7-modos-image-vs-live_stream).
-
-### Bucle — `preview` vs `snapshot`
-
-- `preview = frame.copy()` → vídeo en vivo sin dibujo.
-- Al pulsar espacio: `snapshot = frame.copy()` → inferencia y dibujo solo ahí.
-
-### Bloque ESPACIO
-
-```python
-mp_image = mp.Image(
-    image_format=mp.ImageFormat.SRGB,
-    data=cv2.cvtColor(snapshot, cv2.COLOR_BGR2RGB),
-)
-results = landmarker.detect(mp_image)
-dibujar_manos(snapshot, results)
-cv2.imshow("Paso 02 - Dibujo", snapshot)
-cv2.waitKey(0)
-```
-
-- `detect()` es **bloqueante**.
-- `waitKey(0)` pausa hasta otra tecla (como `prueba.py` tras mostrar resultado).
+### Lógica de congelamiento (ESPACIO)
+- Se duplica el frame en `snapshot = frame.copy()`.
+- Se convierte a RGB y se encapsula en `mp.Image`. Ver [REF §3.2](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#32-espacio-de-color-bgr-a-rgb-mpimage).
+- Se ejecuta `landmarker.detect(mp_image)` de forma **síncrona y bloqueante**.
+- Se dibuja y se muestra `snapshot` llamando a `cv2.waitKey(0)`. Este último bloquea el flujo y actúa como una pausa en pantalla hasta presionar cualquier tecla para reanudar el bucle principal. Ver [REF §2.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#23-refresco-y-detección-de-teclado-cv2waitkey).
 
 ---
 
 ## 6. OpenCV, teclas y ventana
 
-| Tecla | Acción |
-|-------|--------|
-| **ESPACIO** | Detectar y dibujar en el frame actual |
-| **Q** | Salir del programa (solo en bucle en vivo, no durante `waitKey(0)`) |
-| Cualquier tecla | Tras ESPACIO, sale de la pausa |
-
-| OpenCV | Uso |
-|--------|-----|
-| `flip(frame, 1)` | Espejo (igual que paso 1) |
-| `imshow("Paso 02 - Dibujo", ...)` | Preview o snapshot |
-| `waitKey(1)` | Bucle fluido |
-| `waitKey(0)` | Pausa tras detectar |
+- **ESPACIO**: Congela el fotograma actual para realizar la inferencia y dibujar.
+- **Q**: Finaliza el script (solo se detecta en modo de vista en vivo).
+- **Cualquier otra tecla**: Si se está en estado de pausa, reanuda el vídeo en vivo.
 
 ---
 
 ## 7. Consola: qué logs verás
 
-| Momento | Mensaje |
-|---------|---------|
-| Al iniciar | `ESPACIO = detectar y dibujar manos \| Q = salir` |
-| Tras ESPACIO con mano(s) | `Manos detectadas: N` |
-| Tras ESPACIO sin mano | `No se detectaron manos` |
-| Error de lectura | `Error: No se pudo leer el frame` |
-| Modelo ausente | `FileNotFoundError` con ruta a `MODEL_PATH` |
+```text
+ESPACIO = detectar y dibujar manos | Q = salir
+Manos detectadas: 1
+No se detectaron manos
+```
 
 ---
 
@@ -191,130 +138,29 @@ cv2.waitKey(0)
 
 Desde la raíz del proyecto, con `venv` activado:
 
-```powershell
+```bash
 python pasos/paso-02-dibujo/paso_02_dibujo.py
 ```
-
-| En pantalla | En consola |
-|-------------|------------|
-| Vídeo en vivo + ayuda verde | Mensaje inicial ESPACIO / Q |
-| Tras ESPACIO: manos dibujadas | `Manos detectadas: N` o aviso sin manos |
 
 ---
 
 ## 9. Errores frecuentes
 
-| Síntoma | Qué revisar |
-|---------|-------------|
-| `FileNotFoundError` del modelo | ¿Existe `prueba/hand_landmarker.task`? |
-| ESPACIO no hace nada | ¿Ventana con foco? |
-| No se dibuja | Mano en cuadro, luz, BGR→RGB |
-| Vídeo se congela tras ESPACIO | Normal: `waitKey(0)` hasta tecla |
-| Programa no cierra con Q | Solo en bucle en vivo, no en pausa |
-
-Más: [REFERENCIA_COMUN.md §9](../REFERENCIA_COMUN.md#9-errores-frecuentes-todos-los-pasos).
+Para solucionar fallas del modelo ausente, problemas de foco en ventanas o errores de dibujo, consulta la **Tabla de Errores Frecuentes Unificada** en la [Sección 6 de REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
 
 ---
 
 ## 10. ¿Puedo ir al siguiente paso?
 
 **Sí**, si:
+- [ ] ESPACIO congela la imagen y dibuja con éxito el esqueleto al haber manos en el encuadre.
+- [ ] En la terminal se imprimen los mensajes correspondientes (`Manos detectadas: N` o `No se detectaron manos`).
+- [ ] La ventana y cámara se cierran correctamente al pulsar **q**.
 
-- [ ] ESPACIO dibuja el esqueleto cuando hay mano.
-- [ ] Sin mano, consola dice que no se detectaron.
-- [ ] Q cierra bien desde el vídeo en vivo.
-
-**Siguiente:** [Paso 03 — Tiempo real](../paso-03-tiempo-real/paso_03_doc.md) — mismo dibujo con `LIVE_STREAM` y `detect_async` en **cada** frame.
+**Siguiente:** [Paso 03 — Tiempo real](file:///home/thewest/proyectos/GestureFlow/pasos/paso-03-tiempo-real/paso_03_doc.md) — detección asíncrona continua (`LIVE_STREAM`) frame a frame.
 
 ---
 
 ## 11. Referencia del código fuente
 
-```1:103:pasos/paso-02-dibujo/paso_02_dibujo.py
-# --- Librerías de visión y procesamiento ---
-
-import cv2
-import mediapipe as mp
-from mediapipe.tasks import python
-from mediapipe.tasks.python import vision
-from mediapipe.framework.formats import landmark_pb2
-from pathlib import Path
-
-SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parent.parent
-MODEL_PATH = PROJECT_ROOT / "prueba" / "hand_landmarker.task"
-
-def dibujar_manos(frame, results):
-    if not results.hand_landmarks:
-        return False
-    for hand_landmarks in results.hand_landmarks:
-        hand_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
-        hand_landmarks_proto.landmark.extend([
-            landmark_pb2.NormalizedLandmark(x=lm.x, y=lm.y, z=lm.z)
-            for lm in hand_landmarks
-        ])
-        mp.solutions.drawing_utils.draw_landmarks(
-            frame,
-            hand_landmarks_proto,
-            mp.solutions.hands.HAND_CONNECTIONS,
-            mp.solutions.drawing_styles.get_default_hand_landmarks_style(),
-            mp.solutions.drawing_styles.get_default_hand_connections_style(),
-        )
-    return True
-
-if not MODEL_PATH.is_file():
-    raise FileNotFoundError(f"No se encontro el modelo: {MODEL_PATH}")
-
-cap = cv2.VideoCapture(0)
-if not cap.isOpened():
-    print("Error: No se pudo abrir la camara")
-    exit(1)
-
-base_options = python.BaseOptions(model_asset_path=str(MODEL_PATH))
-options = vision.HandLandmarkerOptions(
-    base_options=base_options,
-    running_mode=vision.RunningMode.IMAGE,
-    num_hands=2,
-)
-
-with vision.HandLandmarker.create_from_options(options) as landmarker:
-    print("ESPACIO = detectar y dibujar manos | Q = salir")
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            print("Error: No se pudo leer el frame")
-            break
-
-        frame = cv2.flip(frame, 1)
-        preview = frame.copy()
-
-        cv2.putText(
-            preview,"ESPACIO: detectar | Q: salir",(10, 30),cv2.FONT_HERSHEY_SIMPLEX,0.7,(0, 255, 0),2,
-        )
-
-        cv2.imshow("Paso 02 - Dibujo", preview)
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord("q"):
-            break
-
-        if key == ord(" "):
-            snapshot = frame.copy()
-            mp_image = mp.Image(
-                image_format=mp.ImageFormat.SRGB,
-                data=cv2.cvtColor(snapshot, cv2.COLOR_BGR2RGB),
-            )
-
-            results = landmarker.detect(mp_image)
-            if dibujar_manos(snapshot, results):
-                print(f"Manos detectadas: {len(results.hand_landmarks)}")
-            else:
-                print("No se detectaron manos")
-
-            cv2.imshow("Paso 02 - Dibujo", snapshot)
-            cv2.waitKey(0)
-
-cap.release()
-cv2.destroyAllWindows()
-```
-
-*Fuente de verdad: el archivo `.py` en disco. La documentación resume la lógica; el script incluye comentarios inline adicionales.*
+El script completo vive en [paso_02_dibujo.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-02-dibujo/paso_02_dibujo.py).

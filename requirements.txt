@@ -9,5 +9,7 @@
 # No agregar opencv-python: instala dos paquetes OpenCV y puede romper imports.
 
 mediapipe==0.10.35
-numpy==2.4.6
+numpy==1.26.4
 scikit-learn==1.9.0
+tensorflow==2.16.1
+

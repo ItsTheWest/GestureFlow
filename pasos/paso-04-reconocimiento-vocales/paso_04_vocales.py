@@ -5,6 +5,7 @@ import time
 
 import cv2
 import mediapipe as mp
+import numpy as np
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from mediapipe.tasks.python.vision import drawing_utils as mp_drawing
@@ -21,19 +22,41 @@ ANCHO_INFERENCIA = 320
 ultimo_resultado = None
 listo_para_inferir = True  # Evita encolar frames: solo enviamos cuando el callback terminó
 
-# Variables para validar que el gesto se mantenga (ej. 2 segundos)
-vocal_detectada = None
-tiempo_inicio_vocal = 0.0
+# Variables para validar que el gesto se mantenga por mano (Left/Right)
 TIEMPO_CONFIRMACION = 1.0  # Segundos que debe mantenerse el gesto
 
+estado_manos = {
+    "Left": {
+        "vocal_detectada": None,
+        "tiempo_inicio": 0.0,
+        "confirmada": False
+    },
+    "Right": {
+        "vocal_detectada": None,
+        "tiempo_inicio": 0.0,
+        "confirmada": False
+    }
+}
 
-def on_result(result: vision.HandLandmarkerResult, output_image: mp.Image, timestamp_ms: int):
+
+def on_result(result: vision.HandLandmarkerResult, output_image: mp.Image, timestamp_ms: int) -> None:
+    """Callback asíncrono para recibir los resultados del landmarker."""
     global ultimo_resultado, listo_para_inferir
     ultimo_resultado = result
     listo_para_inferir = True
 
 
-def dibujar_manos(frame, results):
+def dibujar_manos(frame: np.ndarray, results: vision.HandLandmarkerResult) -> bool:
+    """
+    Dibuja los landmarks y conexiones de la mano en el frame actual.
+
+    Args:
+        frame: Lienzo BGR sobre el que se dibujarán las marcas.
+        results: Resultados entregados por el landmarker.
+
+    Returns:
+        bool: True si se detectó y dibujó al menos una mano, False en caso contrario.
+    """
     if not results or not results.hand_landmarks:
         return False
 
@@ -48,8 +71,16 @@ def dibujar_manos(frame, results):
     return True
 
 
-def frame_para_inferencia(frame_bgr):
-    """Redimensiona solo para el modelo; coordenadas normalizadas siguen valiendo en el frame grande."""
+def frame_para_inferencia(frame_bgr: np.ndarray) -> np.ndarray:
+    """
+    Redimensiona el fotograma para acelerar la inferencia en CPU.
+
+    Args:
+        frame_bgr: Imagen original a resolución completa.
+
+    Returns:
+        np.ndarray: Imagen redimensionada si excede el ancho establecido.
+    """
     h, w = frame_bgr.shape[:2]
     if w <= ANCHO_INFERENCIA:
         return frame_bgr
@@ -58,52 +89,77 @@ def frame_para_inferencia(frame_bgr):
     return cv2.resize(frame_bgr, (ANCHO_INFERENCIA, nuevo_h), interpolation=cv2.INTER_AREA)
 
 
-def get_vowel(hand_landmarks):
-    # En la API Tasks de MediaPipe, hand_landmarks es directamente una lista.
-    # 1. Comprobar que los 4 dedos estén cerrados (la punta está por debajo de la articulación PIP)
-    is_index_closed = hand_landmarks[8].y > hand_landmarks[6].y # y = eje vertical, de arriba hacia abajo dedo 8 es la punta y el dedo 6 es la articulación PIP
-    is_middle_closed = hand_landmarks[12].y > hand_landmarks[10].y # y = eje vertical, de arriba hacia abajo dedo 12 es la punta y el dedo 10 es la articulación PIP
-    is_ring_closed = hand_landmarks[16].y > hand_landmarks[14].y # y = eje vertical, de arriba hacia abajo dedo 16 es la punta y el dedo 14 es la articulación PIP
-    is_pinky_closed = hand_landmarks[20].y > hand_landmarks[18].y # y = eje vertical, de arriba hacia abajo dedo 20 es la punta y el dedo 18 es la articulación PIP
-    is_ring_semi_closed = hand_landmarks[15].y > hand_landmarks[14].y and hand_landmarks[16].y > hand_landmarks[15].y # y = eje vertical, de arriba hacia abajo dedo 15 es la articulación PIP y el dedo 16 es la punta
-    is_pinky_semi_closed = hand_landmarks[19].y > hand_landmarks[18].y and hand_landmarks[20].y > hand_landmarks[19].y # y = eje vertical, de arriba hacia abajo dedo 19 es la articulación PIP y el dedo 20 es la punta
-    
-    
-    # 2. Lógica específica del pulgar para la letra 'A' (Pulgar apoyado al lado del índice)
-    # El pulgar debe estar apuntando hacia arriba (punta más arriba que su articulación)
-    is_thumb_up = (hand_landmarks[4].y < hand_landmarks[3].y) and (hand_landmarks[4].y < hand_landmarks[6].y)
-    
-    # El pulgar NO debe cruzar los otros dedos (eso sería una 'S'). 
-    # Debe estar "por fuera" del dedo índice. Comparamos la distancia en el eje X
-    # hacia el meñique para asegurarnos de que está al lado exterior de la mano.
-    dist_thumb_to_pinky = abs(hand_landmarks[4].x - hand_landmarks[17].x)
-    dist_index_to_pinky = abs(hand_landmarks[5].x - hand_landmarks[17].x)
-    is_thumb_on_side = dist_thumb_to_pinky > dist_index_to_pinky    
+def _distancia(lm1, lm2) -> float:
+    """Distancia euclidiana normalizada entre dos landmarks (x, y)."""
+    return math.sqrt((lm1.x - lm2.x) ** 2 + (lm1.y - lm2.y) ** 2)
 
-    is_thumb_down = hand_landmarks[4].x > hand_landmarks[3].x 
 
-    # Regla estricta para 'A'
+def get_vowel(hand_landmarks: list, hand_label: str) -> str | None:
+    """
+    Clasifica si el gesto de la mano corresponde a una vocal.
+
+    Las condiciones que dependen del eje X (posición horizontal del pulgar)
+    se invierten para la mano izquierda, ya que el frame va en espejo y
+    la orientación del pulgar es simétrica respecto a la mano derecha.
+
+    Args:
+        hand_landmarks: Lista de 21 landmarks de una mano.
+        hand_label: 'Right' o 'Left' tal como devuelve MediaPipe.
+
+    Returns:
+        str | None: Vocal detectada ('A', 'E', 'I', 'O', 'U') o None.
+    """
+    lm = hand_landmarks  # Alias corto para mejorar legibilidad
+
+    # 1. Estado de los dedos (eje Y — igual para ambas manos)
+    # Un dedo está cerrado si su punta (TIP) está por debajo de su articulación PIP
+    is_index_closed  = lm[8].y  > lm[6].y
+    is_middle_closed = lm[12].y > lm[10].y
+    is_ring_closed   = lm[16].y > lm[14].y
+    is_pinky_closed  = lm[20].y > lm[18].y
+
+    # Semi-cerrado: la punta pasó el primer nudo pero no llega a la palma
+    is_ring_semi_closed  = lm[15].y > lm[14].y and lm[16].y > lm[15].y
+    is_pinky_semi_closed = lm[19].y > lm[18].y and lm[20].y > lm[19].y
+
+    # 2. Estado del pulgar (eje Y — igual para ambas manos)
+    is_thumb_up = (lm[4].y < lm[3].y) and (lm[4].y < lm[6].y)
+
+    # 3. Posición lateral del pulgar (eje X — depende de la mano)
+    # En el frame espejo la mano izquierda tiene el pulgar en X mayor (derecha de pantalla)
+    # y la mano derecha lo tiene en X menor (izquierda de pantalla).
+    # is_thumb_down: pulgar plegado HACIA los otros dedos (cruzando la palma)
+    if hand_label == "Right":
+        # Mano derecha: pulgar cruza hacia X positivo (derecha) cuando se dobla
+        is_thumb_down = lm[4].x > lm[3].x
+    else:
+        # Mano izquierda: pulgar cruza hacia X negativo (izquierda) cuando se dobla
+        is_thumb_down = lm[4].x < lm[3].x
+
+    # is_thumb_on_side: pulgar apuntando hacia el exterior (alejado del meñique)
+    # Funciona con distancias absolutas, por eso es igual en ambas manos
+    dist_pulgar_menique = abs(lm[4].x - lm[17].x)
+    dist_indice_menique = abs(lm[5].x - lm[17].x)
+    is_thumb_on_side = dist_pulgar_menique > dist_indice_menique
+
+    # 4. Reglas de clasificación
+    # 'A': todos los dedos cerrados, pulgar lateral y apuntando arriba
     if is_index_closed and is_middle_closed and is_ring_closed and is_pinky_closed and is_thumb_up and is_thumb_on_side:
         return 'A'
-    # Regla estricta para 'E'
+    # 'E': todos los dedos cerrados, pulgar plegado hacia adentro
     if is_index_closed and is_middle_closed and is_ring_closed and is_pinky_closed and is_thumb_down:
         return 'E'
-    # Regla estricta para 'I'
-    if  is_index_closed and is_middle_closed and is_ring_closed and not is_pinky_closed and is_thumb_up:
+    # 'I': solo meñique abierto, pulgar arriba
+    if is_index_closed and is_middle_closed and is_ring_closed and not is_pinky_closed and is_thumb_up:
         return 'I'
-    # Regla estricta para 'U'
+    # 'U': índice y medio abiertos, anular y meñique cerrados, pulgar adentro
     if not is_index_closed and not is_middle_closed and is_ring_closed and is_pinky_closed and is_thumb_down:
         return 'U'
-        
-    # logica para 'O' en la que los dedos de la mano se tocan y forman un circulo
-    def get_distance(lm1, lm2):
-        return math.sqrt((lm1.x - lm2.x)**2 + (lm1.y - lm2.y)**2)
-    
-    dist_thumb_index = get_distance(hand_landmarks[4], hand_landmarks[8])
-    dist_thumb_middle = get_distance(hand_landmarks[4], hand_landmarks[12])
-    are_tips_touching = dist_thumb_index < 0.05 and dist_thumb_middle < 0.05
 
-    # Regla estricta para 'O'
+    # 'O': yemas del pulgar-índice y pulgar-medio se tocan formando un círculo
+    dist_thumb_index  = _distancia(lm[4], lm[8])
+    dist_thumb_middle = _distancia(lm[4], lm[12])
+    are_tips_touching = dist_thumb_index < 0.07 and dist_thumb_middle < 0.07
     if are_tips_touching and is_ring_semi_closed and is_pinky_semi_closed:
         return 'O'
 if not MODEL_PATH.is_file():
@@ -147,35 +203,62 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
         if ultimo_resultado is not None:
             dibujar_manos(display, ultimo_resultado)
             
-            # Detectar vocal si hay manos detectadas
-            if ultimo_resultado.hand_landmarks:
-                vocal = get_vowel(ultimo_resultado.hand_landmarks[0])
-                
-                if vocal:
-                    if vocal == vocal_detectada:
-                        # La vocal se mantiene, comprobamos el tiempo
-                        tiempo_transcurrido = time.time() - tiempo_inicio_vocal
-                        if tiempo_transcurrido >= TIEMPO_CONFIRMACION:
-                            cv2.putText(display, f"Vocal Confirmada: {vocal}", (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
+            # Detectar vocal por mano si hay manos detectadas
+            manos_presentes = set()
+            if ultimo_resultado.hand_landmarks and ultimo_resultado.handedness:
+                for idx, landmarks in enumerate(ultimo_resultado.hand_landmarks):
+                    hand_label = ultimo_resultado.handedness[idx][0].category_name
+                    manos_presentes.add(hand_label)
+                    
+                    vocal = get_vowel(landmarks, hand_label)
+                    
+                    if vocal:
+                        if vocal == estado_manos[hand_label]["vocal_detectada"]:
+                            # La vocal se mantiene, comprobamos el tiempo
+                            tiempo_transcurrido = time.time() - estado_manos[hand_label]["tiempo_inicio"]
+                            if tiempo_transcurrido >= TIEMPO_CONFIRMACION:
+                                estado_manos[hand_label]["confirmada"] = True
+                            else:
+                                estado_manos[hand_label]["confirmada"] = False
                         else:
-                            # Mostrar estado de carga (progreso)
-                            cv2.putText(display, f"Validando {vocal}... {tiempo_transcurrido:.1f}s", (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+                            # Cambio de vocal (o nueva), empezamos a contar
+                            estado_manos[hand_label]["vocal_detectada"] = vocal
+                            estado_manos[hand_label]["tiempo_inicio"] = time.time()
+                            estado_manos[hand_label]["confirmada"] = False
                     else:
-                        # Cambio de vocal (o nueva), empezamos a contar
-                        vocal_detectada = vocal
-                        tiempo_inicio_vocal = time.time()
-                else:
-                    vocal_detectada = None  # No reconoció ninguna vocal
-            else:
-                vocal_detectada = None  # No hay manos detectadas
+                        estado_manos[hand_label]["vocal_detectada"] = None
+                        estado_manos[hand_label]["confirmada"] = False
+            
+            # Resetear el estado de las manos que no aparecieron en el frame
+            for hand_label in ["Left", "Right"]:
+                if hand_label not in manos_presentes:
+                    estado_manos[hand_label]["vocal_detectada"] = None
+                    estado_manos[hand_label]["confirmada"] = False
+
+            # Dibujar el estado de las vocales en pantalla
+            y_offset = 80
+            for hand_label in ["Left", "Right"]:
+                vocal = estado_manos[hand_label]["vocal_detectada"]
+                if vocal:
+                    lado = "Izquierda" if hand_label == "Left" else "Derecha"
+                    if estado_manos[hand_label]["confirmada"]:
+                        texto = f"Mano {lado} - Confirmada: {vocal}"
+                        cv2.putText(display, texto, (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 3)
+                    else:
+                        tiempo_transcurrido = time.time() - estado_manos[hand_label]["tiempo_inicio"]
+                        texto = f"Mano {lado} - Validando {vocal}... {tiempo_transcurrido:.1f}s"
+                        cv2.putText(display, texto, (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+                    y_offset += 40
 
         cv2.putText(
-            display,"Tiempo real | Q: salir",(10, 30),cv2.FONT_HERSHEY_SIMPLEX,0.7,(0, 255, 0),2,
+            display, "Tiempo real | Q: salir", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2
         )
         # Mostrar el frame en la ventana
         cv2.imshow("Paso 03 - Tiempo real", display)
-        # Salir del bucle si se pulsa la tecla 'q'
-        if cv2.waitKey(1) & 0xFF == ord("q"):
+
+        # Control de teclado unificado (única llamada waitKey por bucle)
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord("q"):
             break
 
         # Timestamp real (ms): LIVE_STREAM exige que suba; evita desfase por frame_index fijo
@@ -190,8 +273,5 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
             )
             landmarker.detect_async(mp_image, timestamp_ms)
 
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
-
-cap.release()
-cv2.destroyAllWindows()
+    cap.release()
+    cv2.destroyAllWindows()
