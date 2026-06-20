@@ -134,25 +134,41 @@ def entrenar_modelo(model: Sequential, X_train: np.ndarray, Y_train_cat: np.ndar
     )
 
 def evaluar(model: Sequential, X_test: np.ndarray, Y_test_cat: np.ndarray) -> None:
-   loss, accuracy = model.evaluate(X_test, Y_test_cat, verbose=0)
-   print(f"Loss: {loss:.4f}, Accuracy: {accuracy:.4f}")
+   loss, accuracy = model.evaluate(X_test, Y_test_cat, verbose=0) # Se evalua el modelo en el conjunto de prueba
+   print(f"Loss: {loss:.4f}, Accuracy: {accuracy:.4f}") # Se muestra el loss y la accuracy
    
 
 def evaluar_f1(model: Sequential, X_test: np.ndarray, Y_test_cat: np.ndarray, gestos: list[str]) -> None:
-    predictions=model.predict(X_test)
-    predicciones_clase = np.argmax(predictions, axis=1)
-    y_true = np.argmax(Y_test_cat, axis=1)
-    print(classification_report(y_true, predicciones_clase, target_names=gestos))
-    
+    predictions=model.predict(X_test) # Se obtienen las predicciones del modelo
+    predicciones_clase = np.argmax(predictions, axis=1) # Se obtienen las predicciones en formato de clase
+    y_true = np.argmax(Y_test_cat, axis=1) # Se obtienen las etiquetas verdaderas en formato de clase
+    print(classification_report(y_true, predicciones_clase, target_names=gestos, labels=range(len(gestos)))) # Se muestra el reporte de clasificación
 
 if __name__ == "__main__":
     X, Y, gestos = cargar_dataset()
-    
+    print("--- Dataset cargado ---")
     X_train, X_test, Y_train_cat, Y_test_cat = procesar(X, Y, len(gestos))
+    print("--- Dataset procesado ---")
     
     input_shape = X_train.shape[1:]
     num_classes = len(gestos)
-    
+    print("--- Construyendo modelo ---")
     model = construir_modelo(input_shape, num_classes)
+    print("")
+    print("--- Modelo construido ---")
+    print("")
+    print("--- Entrenando modelo ---")
     entrenar_modelo(model, X_train, Y_train_cat, X_test, Y_test_cat)
+    print("")
+    print("--- Modelo entrenado ---")
+    print("")
+    print("--- Evaluando modelo ---")
     evaluar(model, X_test, Y_test_cat)
+    print("")
+    print("--- Modelo evaluado ---")
+    print("")
+    print("--- Evaluando modelo F1 ---")
+    evaluar_f1(model, X_test, Y_test_cat, gestos)
+    print("--- Modelo evaluado F1 ---")
+    print("")
+    
