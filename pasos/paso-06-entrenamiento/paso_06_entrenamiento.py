@@ -1,13 +1,14 @@
-import tensorflow as tf
 from pathlib import Path
-import numpy as np
 
-from sklearn.model_selection import train_test_split #para dividir los datos en conjuntos de entrenamiento y prueba
-from keras.utils import to_categorical #para convertir los datos a one-hot encoding
-from keras.models import Sequential
-from keras.layers import LSTM, Dense, Dropout
+import numpy as np
+import tensorflow as tf
 from keras.callbacks import EarlyStopping, ModelCheckpoint #para el monitoreo y control del entrenamiento
+from keras.layers import LSTM, Dense, Dropout, BatchNormalization
+from keras.models import Sequential
+from keras.regularizers import l2
+from keras.utils import to_categorical #para convertir los datos a one-hot encoding
 from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split #para dividir los datos en conjuntos de entrenamiento y prueba
 
 
 GESTOS_DIR = Path("gestos")
@@ -94,28 +95,32 @@ def procesar(X:np.ndarray, Y:np.ndarray, num_clases:int) -> tuple[np.ndarray, np
     print("Y_test_cat shape:", Y_test_cat.shape)
     return X_train, X_test, Y_train_cat, Y_test_cat
 
-def construir_modelo(input_shape: tuple[int, ...], num_classes: int) -> Sequential:
-    """Assemble, compile, and return the LSTM model architecture."""
+def construir_modelo_mejorado(input_shape: tuple[int, ...], num_classes: int) -> Sequential:
     model = Sequential() # Se inicializa el modelo secuencial de keras
     
     # Primera capa LSTM: procesa la secuencia y devuelve secuencias para la siguiente capa LSTM
-    model.add(LSTM(64, return_sequences=True, input_shape=input_shape)) 
-    model.add(Dropout(0.2)) # Se agrega una capa dropout con una tasa de dropout del 20% 
+    model.add(LSTM(128, return_sequences=True, input_shape=input_shape, 
+                   kernel_regularizer=l2(0.001)))
+    model.add(BatchNormalization()) # Se agrega una capa de normalizacion por lotes
+    model.add(Dropout(0.3)) # Se agrega una capa dropout con una tasa de dropout del 30% 
     
     # Segunda capa LSTM: resume la secuencia en un único vector de 64 dimensiones (return_sequences=False)
-    model.add(LSTM(64, return_sequences=False))
-    model.add(Dropout(0.2))
+    model.add(LSTM(64, return_sequences=False, 
+                   kernel_regularizer=l2(0.001)))
+    model.add(BatchNormalization()) # Se agrega una capa de normalizacion por lotes
+    model.add(Dropout(0.3)) # Se agrega una capa dropout con una tasa de dropout del 30% 
     
-    # Capas densas de clasificación
-    model.add(Dense(32, activation='relu')) # Capa intermedia oculta para refinar características
+    # Capa densa de clasificación
+    model.add(Dense(64, activation='relu', kernel_regularizer=l2(0.001))) # Capa intermedia oculta para refinar características
+    model.add(BatchNormalization()) # Se agrega una capa de normalizacion por lotes
+    model.add(Dropout(0.3)) # Se agrega una capa dropout con una tasa de dropout del 30% 
+    
+    # Capa de salida con activación softmax para las probabilidades de clase
     model.add(Dense(num_classes, activation='softmax')) # Capa de salida con activación softmax para las probabilidades de clase
     
-    # Compilación del modelo en el que se define la funcion de perdida y el optimizador
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy']) # Compilación del modelo en el que se define la funcion de perdida y el optimizador
     
-    # Mostrar resumen del modelo en consola
-    model.summary()
-    
+    model.summary() # Se muestra un resumen del modelo en consola
     return model
 
 def entrenar_modelo(model: Sequential, X_train: np.ndarray, Y_train_cat: np.ndarray, X_test: np.ndarray, Y_test_cat: np.ndarray) -> None:
@@ -168,7 +173,7 @@ def main() -> None:
     
     input_shape = X_train.shape[1:]
     print("--- Construyendo modelo ---")
-    model = construir_modelo(input_shape, num_classes)
+    model = construir_modelo_mejorado(input_shape, num_classes)
     print("\n--- Modelo construido ---\n")
     
     print("--- Entrenando modelo ---")
