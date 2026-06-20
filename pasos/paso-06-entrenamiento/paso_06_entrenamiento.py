@@ -150,31 +150,40 @@ def evaluar_f1(model: Sequential, X_test: np.ndarray, Y_test_cat: np.ndarray, ge
     y_true = np.argmax(Y_test_cat, axis=1) # Se obtienen las etiquetas verdaderas en formato de clase
     print(classification_report(y_true, predicciones_clase, target_names=gestos, labels=range(len(gestos)))) # Se muestra el reporte de clasificación
 
-if __name__ == "__main__":
+def guardar_modelo(model: Sequential) -> None:
+    """Serialize the model to disk."""
+    model.save(str(MODEL_PATH))
+    print(f"Modelo guardado en: {MODEL_PATH}")
+
+def main() -> None:
+    """Orchestrate the full training pipeline."""
+    verificar_entorno()
+
     X, Y, gestos = cargar_dataset()
     print("--- Dataset cargado ---")
-    X_train, X_test, Y_train_cat, Y_test_cat = procesar(X, Y, len(gestos))
+    
+    num_classes = len(gestos)
+    X_train, X_test, Y_train_cat, Y_test_cat = procesar(X, Y, num_classes)
     print("--- Dataset procesado ---")
     
     input_shape = X_train.shape[1:]
-    num_classes = len(gestos)
     print("--- Construyendo modelo ---")
     model = construir_modelo(input_shape, num_classes)
-    print("")
-    print("--- Modelo construido ---")
-    print("")
+    print("\n--- Modelo construido ---\n")
+    
     print("--- Entrenando modelo ---")
     entrenar_modelo(model, X_train, Y_train_cat, X_test, Y_test_cat)
-    print("")
-    print("--- Modelo entrenado ---")
-    print("")
+    print("\n--- Modelo entrenado ---\n")
+    
     print("--- Evaluando modelo ---")
     evaluar(model, X_test, Y_test_cat)
-    print("")
-    print("--- Modelo evaluado ---")
-    print("")
+    print("\n--- Modelo evaluado ---\n")
+    
     print("--- Evaluando modelo F1 ---")
     evaluar_f1(model, X_test, Y_test_cat, gestos)
-    print("--- Modelo evaluado F1 ---")
-    print("")
-    
+    print("--- Modelo evaluado F1 ---\n")
+
+    guardar_modelo(model)
+
+if __name__ == "__main__":
+    main()
