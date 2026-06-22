@@ -2,14 +2,15 @@ from pathlib import Path
 
 import numpy as np
 import tensorflow as tf
-from keras.callbacks import EarlyStopping, ModelCheckpoint #para el monitoreo y control del entrenamiento
+from tensorflow import config
+
+from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.layers import LSTM, Dense, Dropout, BatchNormalization
 from keras.models import Sequential
 from keras.regularizers import l2
-from keras.utils import to_categorical #para convertir los datos a one-hot encoding
+from keras.utils import to_categorical
 from sklearn.metrics import classification_report
-from sklearn.model_selection import train_test_split #para dividir los datos en conjuntos de entrenamiento y prueba
-
+from sklearn.model_selection import train_test_split
 
 GESTOS_DIR = Path("gestos")
 
@@ -27,7 +28,7 @@ MODEL_PATH = Path("modelos/lstm_gestos.keras") #Ruta donde se guardara el modelo
 def verificar_entorno() -> None:
     """Print TF version and list available physical devices."""
     print(f"TensorFlow version: {tf.__version__}")
-    dispositivos = tf.config.list_physical_devices()
+    dispositivos = config.list_physical_devices()
     print(f"Dispositivos físicos encontrados: {dispositivos}")
 
 def cargar_dataset() -> tuple[np.ndarray, np.ndarray, list[str]]:
@@ -100,7 +101,7 @@ def construir_modelo_mejorado(input_shape: tuple[int, ...], num_classes: int) ->
     
     # Primera capa LSTM: procesa la secuencia y devuelve secuencias para la siguiente capa LSTM
     model.add(LSTM(128, return_sequences=True, input_shape=input_shape, 
-                   kernel_regularizer=l2(0.001)))
+                   kernel_regularizer=l2(0.001))) # Se agrega una capa LSTM con 128 neuronas y regularizacion L2
     model.add(BatchNormalization()) # Se agrega una capa de normalizacion por lotes
     model.add(Dropout(0.3)) # Se agrega una capa dropout con una tasa de dropout del 30% 
     
