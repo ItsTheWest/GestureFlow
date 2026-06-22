@@ -7,6 +7,8 @@ INSTRUCTIONS*.md
 docs/
 steps_training_lstm.md
 explicacion_variables_entrenamiento.md
+steps_data_balance_and_lstm.md
+steps_detection_realtime.md
 
 
 # ---------------------------------------------------------------------------
