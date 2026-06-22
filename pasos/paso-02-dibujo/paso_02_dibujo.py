@@ -12,7 +12,7 @@ mp_hands = mp.tasks.vision.HandLandmarksConnections
 # --- Rutas relativas al script (mismo patrón que prueba.py y pasos futuros) ---
 SCRIPT_DIR = Path(__file__).resolve().parent  # Carpeta de este paso: pasos/paso-02-dibujo/
 PROJECT_ROOT = SCRIPT_DIR.parent.parent  # Raíz GestureFlow/ (sube dos niveles desde paso-02-dibujo)
-MODEL_PATH = PROJECT_ROOT / "prueba" / "hand_landmarker.task"  # Modelo compartido con Fase 0
+MODEL_PATH = PROJECT_ROOT / "assets" / "models" / "hand_landmarker.task"  # Modelo compartido
 
 
 def dibujar_manos(frame, results):

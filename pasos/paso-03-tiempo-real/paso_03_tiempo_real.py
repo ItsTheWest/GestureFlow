@@ -13,7 +13,7 @@ mp_hands = mp.tasks.vision.HandLandmarksConnections
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent.parent
-MODEL_PATH = PROJECT_ROOT / "prueba" / "hand_landmarker.task"
+MODEL_PATH = PROJECT_ROOT / "assets" / "models" / "hand_landmarker.task"
 
 # Ancho para inferencia (más bajo = menos retardo en CPU). Landmarks son 0-1, se dibujan bien en el frame completo.
 ANCHO_INFERENCIA = 320

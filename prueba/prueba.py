@@ -17,7 +17,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent  # Carpeta donde está este .py (pr
 PROJECT_ROOT = SCRIPT_DIR.parent  # Raíz del proyecto (GestureFlow/)
 
 image_path = PROJECT_ROOT / "assets" / "img_prueba" /  "image.png"  # Imagen de entrada
-model_path = SCRIPT_DIR / "hand_landmarker.task"  # Modelo entrenado de MediaPipe
+model_path = PROJECT_ROOT / "assets" / "models" / "hand_landmarker.task"  # Modelo entrenado de MediaPipe
 
 # --- Carga de la imagen en memoria (formato BGR de OpenCV) ---
 

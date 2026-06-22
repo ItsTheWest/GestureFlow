@@ -13,7 +13,7 @@ from mediapipe.tasks.python import vision
 # ---------------------------------------------------------------------------
 SCRIPT_DIR   = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent.parent
-MODEL_PATH   = PROJECT_ROOT / "prueba" / "hand_landmarker.task"
+MODEL_PATH   = PROJECT_ROOT / "assets" / "models" / "hand_landmarker.task"
 
 # ---------------------------------------------------------------------------
 # Recording parameters 
