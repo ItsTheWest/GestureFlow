@@ -12,6 +12,8 @@ from keras.utils import to_categorical
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 
+from utils import get_gesture_names
+
 GESTOS_DIR = Path("gestos")
 
 SEQUENCE_LENGTH = 30 #Se define la longitud de la secuencia
@@ -32,20 +34,10 @@ def verificar_entorno() -> None:
     print(f"Dispositivos físicos encontrados: {dispositivos}")
 
 def cargar_dataset() -> tuple[np.ndarray, np.ndarray, list[str]]:
-    if not GESTOS_DIR.exists(): #Se evalua si la carpeta con gestos existe
-        raise FileNotFoundError(f"Gestos no encontrados:{GESTOS_DIR}")
-    subdirs = [] #definimos la lista de sub directorios 
+    gestos = get_gesture_names(GESTOS_DIR)  # validates existence and ≥ 2 classes
+    X, Y = [], []
 
-    for subdir in sorted(GESTOS_DIR.iterdir()):#recorremos ordenadamente los archivos 
-        if subdir.is_dir():  #si es un directorio
-            subdirs.append(subdir.name) #agregamos el nombre del directorio a la lista
-    if len(subdirs)<2:
-        raise ValueError("Deben haber al menos 2 gestos")
-
-    gestos = subdirs  # Las clases corresponden exactamente a los subdirectorios ordenados
-    X, Y = [], [] # Se definen las listas que almacenaran los datos
-
-    for i, gesto in enumerate(subdirs): # se recorre cada gesto en busqueda de los archivos npy
+    for i, gesto in enumerate(gestos):
         gesto_path = GESTOS_DIR / gesto
         for npy_file in gesto_path.glob("*.npy"):
             secuencia = np.load(npy_file) # Se carga el archivo .npy

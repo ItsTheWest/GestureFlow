@@ -8,6 +8,8 @@ import numpy as np
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
+from utils import extract_keypoints
+
 # ---------------------------------------------------------------------------
 # Path resolution — same pattern as previous steps
 # ---------------------------------------------------------------------------
@@ -50,33 +52,6 @@ def build_landmarker() -> vision.HandLandmarker:
     )
 
     return vision.HandLandmarker.create_from_options(options)
-
-
-# ---------------------------------------------------------------------------
-# Step 2 — Extracción de Keypoints
-# ---------------------------------------------------------------------------
-def extract_keypoints(results: vision.HandLandmarkerResult) -> np.ndarray:
-    left_hand = np.zeros(63, dtype=np.float32) # Inicializa la mano izquierda en ceros
-    right_hand = np.zeros(63, dtype=np.float32) # Inicializa la mano derecha en ceros
-
-    if results.hand_landmarks and results.handedness: # Si se detectan manos
-        for idx, hand_info in enumerate(results.handedness): # Recorre las manos detectadas
-            # Extracción de la mano izquierda o derecha
-            hand_label = hand_info[0].category_name
-            
-            # Extracción de los landmarks y aplanamiento
-            landmarks = results.hand_landmarks[idx]
-            flat_coords = [] # Lista para almacenar las coordenadas de los landmarks
-            for lm in landmarks:
-                flat_coords.extend([lm.x, lm.y, lm.z]) # Se añade cada coordenada
-            
-            # Colocación en el slot correcto
-            if hand_label == "Left":
-                left_hand = np.array(flat_coords, dtype=np.float32)
-            elif hand_label == "Right":
-                right_hand = np.array(flat_coords, dtype=np.float32)
-
-    return np.concatenate([left_hand, right_hand])
 
 
 # ---------------------------------------------------------------------------
