@@ -16,9 +16,8 @@ def delete_bad_folders(base_path: Path, min_sequences: int = 1) -> None:
 if __name__ == "__main__":
     gestos_dir = Path("gestos")
     
-    print("Iniciando limpieza automática...")
+    print("Iniciando limpieza automática...") # Se inicia la limpieza automática
     # Elimina carpetas con menos de 1 secuencia
     delete_bad_folders(gestos_dir, min_sequences=1)
     
-    print("Limpieza completada.")
-    print("Note: The script cannot automatically fix bad names like 'prueba 1'. You still need to rename those manually.")
+    print("Limpieza completada.") # Se indica que la limpieza ha finalizado
