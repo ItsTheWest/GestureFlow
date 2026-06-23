@@ -1,11 +1,15 @@
+from keras.models import load_model
 from pathlib import Path
 import numpy as np
 
-
+import mediapipe as mp
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
+ 
 PROJECT_ROOT         = Path(__file__).resolve().parent.parent.parent
 MP_TASK_PATH         = PROJECT_ROOT / "assets" / "models" / "hand_landmarker.task"
-MODEL_PATH           = PROJECT_ROOT / "modelos" / "lstm_gestos.keras"
-GESTOS_DIR           = PROJECT_ROOT / "gestos"
+MODEL_PATH           = PROJECT_ROOT / "modelos" / "lstm_gestos.keras" 
+GESTOS_DIR           = PROJECT_ROOT / "gestos" 
 
 SEQUENCE_LENGTH      = 30 # cantidad de frames a procesar
 CONFIDENCE_THRESHOLD = 0.8 # confianza minima para mostrar una prediccion
@@ -19,5 +23,24 @@ HAND_CONNECTIONS: frozenset[tuple[int, int]] = frozenset([
     (5, 9), (9, 13), (13, 17),
 ])
 
-def cargar_modelo(modelo:Path):
-    pass
+def cargar_modelo(model_path:Path):
+    try:
+        model = load_model(model_path)
+        print(f"Modelo cargado exitosamente desde {model_path}")
+        return model
+    except Exception as e:
+        raise FileNotFoundError(f"No se encontro el modelo en {model_path} o {e}")
+
+def setup_landmarker() -> vision.HandLandmarker:
+    base_options = mp.BaseOptions(model_asset_path=str(MP_TASK_PATH)) # Path al modelo de mediapipe
+
+    options = vision.HandLandmarkerOptions(
+        base_options=base_options, # Opciones base del modelo
+        running_mode=vision.RunningMode.LIVE_STREAM, # Modo de ejecucion en tiempo real
+        num_hands=2, # Numero de manos a detectar
+        min_hand_detection_confidence=0.5, # Confianza minima para detectar una mano
+        min_hand_presence_confidence=0.5, # Confianza minima para detectar la presencia de una mano
+        min_tracking_confidence=0.5, # Confianza minima para rastrear una mano
+    )
+    return vision.HandLandmarker.create_from_options(options)
+    
