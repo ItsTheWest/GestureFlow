@@ -1,17 +1,21 @@
-from keras.models import load_model
+# ── Standard Library ──────────────────────────────────────────────────────────
+import sys
 from pathlib import Path
-import numpy as np
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+# ── Third-Party ────────────────────────────────────────────────────────────────
+import cv2
 import mediapipe as mp
-from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-import cv2 
+import numpy as np
+from keras.models import load_model
 
-from utils import extract_keypoints
-from utils import get_gesture_names
+# ── Local ──────────────────────────────────────────────────────────────────────
+from utils import extract_keypoints, get_gesture_names
 
- 
-PROJECT_ROOT         = Path(__file__).resolve().parent.parent.parent
 MP_TASK_PATH         = PROJECT_ROOT / "assets" / "models" / "hand_landmarker.task"
 MODEL_PATH           = PROJECT_ROOT / "modelos" / "lstm_gestos.keras" 
 GESTOS_DIR           = PROJECT_ROOT / "gestos" 

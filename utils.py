@@ -1,9 +1,4 @@
-"""Shared utilities for GestureFlow training and inference scripts.
-
-Functions here are used by more than one pipeline stage (data collection,
-training, real-time detection).  Any change here propagates automatically
-to all callers — do NOT copy-paste these functions into individual scripts.
-"""
+"""utilidades compartidas para el proyecto de deteccion de gestos"""
 from pathlib import Path
 
 import numpy as np
