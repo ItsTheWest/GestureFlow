@@ -5,6 +5,11 @@ import numpy as np
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+import cv2 
+
+from utils import extract_keypoints
+from utils import get_gesture_names
+
  
 PROJECT_ROOT         = Path(__file__).resolve().parent.parent.parent
 MP_TASK_PATH         = PROJECT_ROOT / "assets" / "models" / "hand_landmarker.task"
@@ -31,7 +36,7 @@ def cargar_modelo(model_path:Path):
     except Exception as e:
         raise FileNotFoundError(f"No se encontro el modelo en {model_path} o {e}")
 
-def setup_landmarker() -> vision.HandLandmarker:
+def setup_landmarker() -> vision.HandLandmarker: #permite hacer inferencias con mediapipe para detectar puntos clave de la mano
     base_options = mp.BaseOptions(model_asset_path=str(MP_TASK_PATH)) # Path al modelo de mediapipe
 
     options = vision.HandLandmarkerOptions(
@@ -43,4 +48,14 @@ def setup_landmarker() -> vision.HandLandmarker:
         min_tracking_confidence=0.5, # Confianza minima para rastrear una mano
     )
     return vision.HandLandmarker.create_from_options(options)
+
+
     
+
+
+if __name__ == "__main__":
+    model = cargar_modelo(MODEL_PATH)
+    model.summary()  # muestra resumen del modelo
+    gestures = get_gesture_names(GESTOS_DIR)
+    print(f"Loaded {len(gestures)} gestures: {gestures}") # muestra los gestos cargados
+
