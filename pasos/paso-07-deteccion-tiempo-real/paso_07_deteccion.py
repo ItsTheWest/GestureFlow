@@ -1,13 +1,14 @@
 # ── Standard Library ──────────────────────────────────────────────────────────
 from collections import deque
 from pathlib import Path
+import time
 
 # ── Third-Party ────────────────────────────────────────────────────────────────
 import cv2
-import mediapipe as mp
-from mediapipe.tasks.python import vision
-import numpy as np
 from keras.models import load_model
+import mediapipe as mp
+from mediapipe.tasks.python import BaseOptions, vision
+import numpy as np
 
 
 # ── Local ──────────────────────────────────────────────────────────────────────
@@ -38,16 +39,17 @@ def cargar_modelo(model_path:Path):
     except Exception as e:
         raise FileNotFoundError(f"No se encontro el modelo en {model_path} o {e}")
 
-def setup_landmarker() -> vision.HandLandmarker: #permite hacer inferencias con mediapipe para detectar puntos clave de la mano
-    base_options = mp.BaseOptions(model_asset_path=str(MP_TASK_PATH)) # Path al modelo de mediapipe
+def setup_landmarker() -> vision.HandLandmarker:
+    """Permite hacer inferencias con mediapipe para detectar puntos clave de la mano."""
+    base_options = BaseOptions(model_asset_path=str(MP_TASK_PATH))
 
     options = vision.HandLandmarkerOptions(
-        base_options=base_options, # Opciones base del modelo
-        running_mode=vision.RunningMode.IMAGE, # Modo de ejecucion síncrono para imágenes individuales
-        num_hands=2, # Numero de manos a detectar
-        min_hand_detection_confidence=0.5, # Confianza minima para detectar una mano
-        min_hand_presence_confidence=0.5, # Confianza minima para detectar la presencia de una mano
-        min_tracking_confidence=0.5, # Confianza minima para rastrear una mano
+        base_options=base_options,
+        running_mode=vision.RunningMode.VIDEO,  # Cambiado a VIDEO para flujos en tiempo real
+        num_hands=2,
+        min_hand_detection_confidence=0.5,
+        min_hand_presence_confidence=0.5,
+        min_tracking_confidence=0.5,
     )
     return vision.HandLandmarker.create_from_options(options)
 
