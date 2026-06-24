@@ -1,7 +1,9 @@
 # ── Standard Library ──────────────────────────────────────────────────────────
 from collections import deque
 from pathlib import Path
+import threading
 import time
+from typing import Callable
 
 # ── Third-Party ────────────────────────────────────────────────────────────────
 import cv2
@@ -96,6 +98,7 @@ def main() -> None:
         frame_count: int = 0
         current_gesture: str = ""
         current_confidence: float = 0.0
+        prediction_in_progress: bool = False
         
         # --- Bucle principal de captura ---
         while cap.isOpened():
