@@ -117,6 +117,7 @@ def main() -> None:
 
         def on_prediction_complete(gesture_index: int, confidence: float) -> None:
             nonlocal current_gesture, current_confidence, prediction_in_progress
+            print(f"Pred: {gestures[gesture_index]} ({confidence:.4f})")
             if confidence > CONFIDENCE_THRESHOLD:
                 current_gesture = gestures[gesture_index]
             else:
@@ -153,7 +154,7 @@ def main() -> None:
             if len(sequence) == SEQUENCE_LENGTH and not prediction_in_progress:
                 prediction_in_progress = True
                 # Copiar secuencia para evitar race conditions en hilos concurrentes
-                sequence_snapshot = np.copy(sequence)
+                sequence_snapshot = np.array(sequence, dtype=np.float32)
                 threading.Thread(
                     target=predecir_gesto_async,
                     args=(model, sequence_snapshot, gestures, on_prediction_complete)
