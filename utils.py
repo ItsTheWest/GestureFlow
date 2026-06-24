@@ -32,10 +32,23 @@ def extract_keypoints(results: vision.HandLandmarkerResult) -> np.ndarray:
             for lm in landmarks:
                 flat_coords.extend([lm.x, lm.y, lm.z])
 
+            # Subtract wrist coordinates (joint 0) for translation invariance
+            wrist_x: float = flat_coords[0]
+            wrist_y: float = flat_coords[1]
+            wrist_z: float = flat_coords[2]
+
+            relative_coords: list[float] = []
+            for i in range(0, len(flat_coords), 3):
+                relative_coords.extend([
+                    flat_coords[i] - wrist_x,
+                    flat_coords[i+1] - wrist_y,
+                    flat_coords[i+2] - wrist_z
+                ])
+
             if hand_label == "Left":
-                left_hand = np.array(flat_coords, dtype=np.float32)
+                left_hand = np.array(relative_coords, dtype=np.float32)
             elif hand_label == "Right":
-                right_hand = np.array(flat_coords, dtype=np.float32)
+                right_hand = np.array(relative_coords, dtype=np.float32)
 
     return np.concatenate([left_hand, right_hand])
 
