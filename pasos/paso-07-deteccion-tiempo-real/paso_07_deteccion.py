@@ -114,6 +114,15 @@ def main() -> None:
         current_gesture: str = ""
         current_confidence: float = 0.0
         prediction_in_progress: bool = False
+
+        def on_prediction_complete(gesture_index: int, confidence: float) -> None:
+            nonlocal current_gesture, current_confidence, prediction_in_progress
+            if confidence > CONFIDENCE_THRESHOLD:
+                current_gesture = gestures[gesture_index]
+            else:
+                current_gesture = ""
+            current_confidence = confidence
+            prediction_in_progress = False
         
         # --- Bucle principal de captura ---
         while cap.isOpened():
@@ -140,16 +149,15 @@ def main() -> None:
             sequence.append(keypoints)
             frame_count += 1
             
-            # 12: Implementar la predicción cuando la secuencia esté completa y cada 5 frames
-            if len(sequence) == SEQUENCE_LENGTH and frame_count % 5 == 0:
-                input_data = np.expand_dims(np.array(sequence), axis=0) # Agrega dimensión de lote
-                prediction = model(input_data, training=False).numpy()[0] # Realiza la predicción
-                gesture_index = np.argmax(prediction) # Obtiene el índice de la clase con mayor probabilidad
-                current_confidence = float(np.max(prediction)) # Obtiene la probabilidad de la clase con mayor probabilidad
-                if current_confidence > CONFIDENCE_THRESHOLD:
-                    current_gesture = gestures[gesture_index] # Obtiene el nombre de la clase con mayor probabilidad
-                else:
-                    current_gesture = "" # Limpia el gesto si la confianza es baja
+            # 12: Implementar la predicción de forma asíncrona cuando la secuencia esté completa
+            if len(sequence) == SEQUENCE_LENGTH and not prediction_in_progress:
+                prediction_in_progress = True
+                # Copiar secuencia para evitar race conditions en hilos concurrentes
+                sequence_snapshot = np.copy(sequence)
+                threading.Thread(
+                    target=predecir_gesto_async,
+                    args=(model, sequence_snapshot, gestures, on_prediction_complete)
+                ).start()
             
             # Mostrar el último gesto detectado persistente en pantalla
             if current_gesture and current_confidence > CONFIDENCE_THRESHOLD:
