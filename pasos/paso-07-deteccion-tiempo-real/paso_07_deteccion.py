@@ -73,6 +73,21 @@ def dibujar_landmarks(frame: np.ndarray, results: vision.HandLandmarkerResult) -
         for coord in coords:
             cv2.circle(frame, coord, 3, (0, 0, 255), -1)
 
+
+def predecir_gesto_async(
+    model,
+    input_sequence: np.ndarray,
+    gestures: list[str],
+    callback: Callable[[int, float], None]
+) -> None:
+    """Ejecuta la predicción del modelo LSTM en un hilo secundario de manera asíncrona."""
+    input_data = np.expand_dims(input_sequence, axis=0)
+    prediction = model(input_data, training=False).numpy()[0]
+    gesture_index = int(np.argmax(prediction))
+    confidence = float(np.max(prediction))
+    callback(gesture_index, confidence)
+
+
 def main() -> None:
     # PASO 1: Cargar el modelo
     model = cargar_modelo(MODEL_PATH)
