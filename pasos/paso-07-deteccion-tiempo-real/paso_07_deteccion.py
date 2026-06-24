@@ -160,8 +160,12 @@ def main() -> None:
                     args=(model, sequence_snapshot, gestures, on_prediction_complete)
                 ).start()
             
-            # Mostrar el último gesto detectado persistente en pantalla
-            if current_gesture and current_confidence > CONFIDENCE_THRESHOLD:
+            # Mostrar el último gesto detectado o advertencia si no hay mano visible
+            if not results.hand_landmarks:
+                cv2.putText(frame, "No hand detected", (50, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                current_gesture = ""
+                sequence.clear()
+            elif current_gesture and current_confidence > CONFIDENCE_THRESHOLD:
                 cv2.putText(frame, f"{current_gesture} ({current_confidence:.2f})", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
             # 13: Mostrar frame y esperar tecla de salida ESC (código 27)
