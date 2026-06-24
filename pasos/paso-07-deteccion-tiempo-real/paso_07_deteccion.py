@@ -121,7 +121,7 @@ def main() -> None:
             # 12: Implementar la predicción cuando la secuencia esté completa
             if len(sequence) == SEQUENCE_LENGTH:
                 input_data = np.expand_dims(np.array(sequence), axis=0) # Agrega dimensión de lote
-                prediction = model.predict(input_data, verbose=0)[0] # Realiza la predicción
+                prediction = model(input_data, training=False).numpy()[0] # Realiza la predicción
                 gesture_index = np.argmax(prediction) # Obtiene el índice de la clase con mayor probabilidad
                 confidence = np.max(prediction) # Obtiene la probabilidad de la clase con mayor probabilidad
                 if confidence > CONFIDENCE_THRESHOLD:
