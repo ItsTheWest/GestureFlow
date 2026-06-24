@@ -10,7 +10,6 @@ import mediapipe as mp
 from mediapipe.tasks.python import BaseOptions, vision
 import numpy as np
 
-
 # ── Local ──────────────────────────────────────────────────────────────────────
 from utils import extract_keypoints, get_gesture_names
 
@@ -31,7 +30,7 @@ HAND_CONNECTIONS: frozenset[tuple[int, int]] = frozenset([
     (5, 9), (9, 13), (13, 17),
 ])
 
-def cargar_modelo(model_path:Path):
+def cargar_modelo(model_path: Path):
     try:
         model = load_model(model_path)
         print(f"Modelo cargado exitosamente desde {model_path}")
@@ -72,14 +71,17 @@ def dibujar_landmarks(frame: np.ndarray, results: vision.HandLandmarkerResult) -
         for coord in coords:
             cv2.circle(frame, coord, 3, (0, 0, 255), -1)
 
-def main()-> None:
+def main() -> None:
     # PASO 1: Cargar el modelo
     model = cargar_modelo(MODEL_PATH)
     model.summary()  # muestra resumen del modelo
-    #PASO 2: Cargar los gestos
+    
+    # PASO 2: Cargar los gestos
     gestures = get_gesture_names(GESTOS_DIR)
     print(f"Loaded {len(gestures)} gestures: {gestures}") # muestra los gestos cargados
+    
     sequence: deque[np.ndarray] = deque(maxlen=SEQUENCE_LENGTH)
+    
     # PASO 3: Inicializar la cámara
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
@@ -89,14 +91,48 @@ def main()-> None:
     with setup_landmarker() as landmarker:
         print("Sistema listo. Iniciando bucle de detección...")
         
+        # Guardar tiempo inicial para calcular timestamp_ms incremental
+        start_time = time.time()
+        
         # --- Bucle principal de captura ---
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
                 print("No se pudo leer el cuadro de la cámara.")
                 break
-
-    # Clean up resources
+                
+            # 7: Voltear horizontalmente (efecto espejo)
+            frame = cv2.flip(frame, 1)
+            
+            # 8: Convertir BGR -> RGB y envolver en mp.Image
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+            
+            # 9: Calcular timestamp_ms y realizar detección en modo VIDEO
+            timestamp_ms = int((time.time() - start_time) * 1000)
+            results = landmarker.detect_for_video(mp_image, timestamp_ms)
+            
+            # 10: Dibujar esqueleto de la mano para visualización
+            dibujar_landmarks(frame, results)
+            
+            keypoints = extract_keypoints(results)
+            sequence.append(keypoints)
+            
+            # 12: Implementar la predicción cuando la secuencia esté completa
+            if len(sequence) == SEQUENCE_LENGTH:
+                input_data = np.expand_dims(np.array(sequence), axis=0) # Agrega dimensión de lote
+                prediction = model.predict(input_data, verbose=0)[0] # Realiza la predicción
+                gesture_index = np.argmax(prediction) # Obtiene el índice de la clase con mayor probabilidad
+                confidence = np.max(prediction) # Obtiene la probabilidad de la clase con mayor probabilidad
+                if confidence > CONFIDENCE_THRESHOLD:
+                    gesture_name = gestures[gesture_index] # Obtiene el nombre de la clase con mayor probabilidad
+                    cv2.putText(frame, f"{gesture_name} ({confidence:.2f})", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            # 13: Mostrar frame y esperar tecla de salida ESC (código 27)
+            cv2.imshow("GestureFlow Detection", frame)
+            if cv2.waitKey(1) & 0xFF == 27:
+                break
+                
+    # 14: Liberar recursos
     cap.release()
     cv2.destroyAllWindows()
 
