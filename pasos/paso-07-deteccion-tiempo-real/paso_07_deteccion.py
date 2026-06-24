@@ -92,7 +92,10 @@ def main() -> None:
         print("Sistema listo. Iniciando bucle de detección...")
         
         # Guardar tiempo inicial para calcular timestamp_ms incremental
-        start_time = time.time()
+        start_time: float = time.time()
+        frame_count: int = 0
+        current_gesture: str = ""
+        current_confidence: float = 0.0
         
         # --- Bucle principal de captura ---
         while cap.isOpened():
@@ -117,16 +120,23 @@ def main() -> None:
             
             keypoints = extract_keypoints(results)
             sequence.append(keypoints)
+            frame_count += 1
             
-            # 12: Implementar la predicción cuando la secuencia esté completa
-            if len(sequence) == SEQUENCE_LENGTH:
+            # 12: Implementar la predicción cuando la secuencia esté completa y cada 5 frames
+            if len(sequence) == SEQUENCE_LENGTH and frame_count % 5 == 0:
                 input_data = np.expand_dims(np.array(sequence), axis=0) # Agrega dimensión de lote
                 prediction = model(input_data, training=False).numpy()[0] # Realiza la predicción
                 gesture_index = np.argmax(prediction) # Obtiene el índice de la clase con mayor probabilidad
-                confidence = np.max(prediction) # Obtiene la probabilidad de la clase con mayor probabilidad
-                if confidence > CONFIDENCE_THRESHOLD:
-                    gesture_name = gestures[gesture_index] # Obtiene el nombre de la clase con mayor probabilidad
-                    cv2.putText(frame, f"{gesture_name} ({confidence:.2f})", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                current_confidence = float(np.max(prediction)) # Obtiene la probabilidad de la clase con mayor probabilidad
+                if current_confidence > CONFIDENCE_THRESHOLD:
+                    current_gesture = gestures[gesture_index] # Obtiene el nombre de la clase con mayor probabilidad
+                else:
+                    current_gesture = "" # Limpia el gesto si la confianza es baja
+            
+            # Mostrar el último gesto detectado persistente en pantalla
+            if current_gesture and current_confidence > CONFIDENCE_THRESHOLD:
+                cv2.putText(frame, f"{current_gesture} ({current_confidence:.2f})", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
             # 13: Mostrar frame y esperar tecla de salida ESC (código 27)
             cv2.imshow("GestureFlow Detection", frame)
             if cv2.waitKey(1) & 0xFF == 27:
