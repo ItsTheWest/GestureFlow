@@ -1,4 +1,5 @@
 # ── Standard Library ──────────────────────────────────────────────────────────
+from collections import deque
 from pathlib import Path
 
 # ── Third-Party ────────────────────────────────────────────────────────────────
@@ -7,6 +8,7 @@ import mediapipe as mp
 from mediapipe.tasks.python import vision
 import numpy as np
 from keras.models import load_model
+
 
 # ── Local ──────────────────────────────────────────────────────────────────────
 from utils import extract_keypoints, get_gesture_names
@@ -50,7 +52,7 @@ def setup_landmarker() -> vision.HandLandmarker: #permite hacer inferencias con 
     return vision.HandLandmarker.create_from_options(options)
 
 
-def draw_landmarks(frame: np.ndarray, results: vision.HandLandmarkerResult) -> None:
+def dibujar_landmarks(frame: np.ndarray, results: vision.HandLandmarkerResult) -> None:
     if not results.hand_landmarks:
         return
     h, w, _ = frame.shape
@@ -68,11 +70,33 @@ def draw_landmarks(frame: np.ndarray, results: vision.HandLandmarkerResult) -> N
         for coord in coords:
             cv2.circle(frame, coord, 3, (0, 0, 255), -1)
 
-
-
-if __name__ == "__main__":
+def main()-> None:
+    # PASO 1: Cargar el modelo
     model = cargar_modelo(MODEL_PATH)
     model.summary()  # muestra resumen del modelo
+    #PASO 2: Cargar los gestos
     gestures = get_gesture_names(GESTOS_DIR)
     print(f"Loaded {len(gestures)} gestures: {gestures}") # muestra los gestos cargados
+    sequence: deque[np.ndarray] = deque(maxlen=SEQUENCE_LENGTH)
+    # PASO 3: Inicializar la cámara
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        raise RuntimeError("No se pudo acceder a la cámara de video.")
+    
+    # PASO 4: Inicializar el detector de puntos clave
+    with setup_landmarker() as landmarker:
+        print("Sistema listo. Iniciando bucle de detección...")
+        
+        # --- Bucle principal de captura ---
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                print("No se pudo leer el cuadro de la cámara.")
+                break
 
+    # Clean up resources
+    cap.release()
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    main()
