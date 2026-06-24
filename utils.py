@@ -32,7 +32,6 @@ def extract_keypoints(results: vision.HandLandmarkerResult) -> np.ndarray:
             for lm in landmarks:
                 flat_coords.extend([lm.x, lm.y, lm.z])
 
-            # Subtract wrist coordinates (joint 0) for translation invariance
             wrist_x: float = flat_coords[0]
             wrist_y: float = flat_coords[1]
             wrist_z: float = flat_coords[2]
