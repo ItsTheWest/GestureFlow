@@ -1,10 +1,5 @@
 # ── Standard Library ──────────────────────────────────────────────────────────
-import sys
 from pathlib import Path
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
 # ── Third-Party ────────────────────────────────────────────────────────────────
 import cv2
@@ -16,6 +11,7 @@ from keras.models import load_model
 # ── Local ──────────────────────────────────────────────────────────────────────
 from utils import extract_keypoints, get_gesture_names
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 MP_TASK_PATH         = PROJECT_ROOT / "assets" / "models" / "hand_landmarker.task"
 MODEL_PATH           = PROJECT_ROOT / "modelos" / "lstm_gestos.keras" 
 GESTOS_DIR           = PROJECT_ROOT / "gestos" 
@@ -45,7 +41,7 @@ def setup_landmarker() -> vision.HandLandmarker: #permite hacer inferencias con 
 
     options = vision.HandLandmarkerOptions(
         base_options=base_options, # Opciones base del modelo
-        running_mode=vision.RunningMode.LIVE_STREAM, # Modo de ejecucion en tiempo real
+        running_mode=vision.RunningMode.IMAGE, # Modo de ejecucion síncrono para imágenes individuales
         num_hands=2, # Numero de manos a detectar
         min_hand_detection_confidence=0.5, # Confianza minima para detectar una mano
         min_hand_presence_confidence=0.5, # Confianza minima para detectar la presencia de una mano
@@ -54,7 +50,24 @@ def setup_landmarker() -> vision.HandLandmarker: #permite hacer inferencias con 
     return vision.HandLandmarker.create_from_options(options)
 
 
-    
+def draw_landmarks(frame: np.ndarray, results: vision.HandLandmarkerResult) -> None:
+    if not results.hand_landmarks:
+        return
+    h, w, _ = frame.shape
+    for hand_landmarks_list in results.hand_landmarks:
+       # Guarda las coordenadas de los puntos clave en una lista 
+        coords = [
+            (int(lm.x * w), int(lm.y * h)) 
+            for lm in hand_landmarks_list
+        ]
+        # Dibuja las conexiones usando las coordenadas precalculadas
+        for start_idx, end_idx in HAND_CONNECTIONS:
+            cv2.line(frame, coords[start_idx], coords[end_idx], (0, 255, 0), 2)
+            
+        # Dibuja los puntos clave
+        for coord in coords:
+            cv2.circle(frame, coord, 3, (0, 0, 255), -1)
+
 
 
 if __name__ == "__main__":
