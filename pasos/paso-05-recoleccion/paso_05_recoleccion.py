@@ -37,12 +37,12 @@ COUNTDOWN_SECS   = 5
 FLASH_DURATION   = 15
 
 # Guided phases for data collection to introduce variability
-PHASES = [
-    {"name": "BASE: Normal y estable", "range": range(0, 40)},
-    {"name": "VELOCIDAD: Rapido y lento", "range": range(40, 80)},
-    {"name": "DISTANCIA: Cerca y lejos", "range": range(80, 120)},
-    {"name": "ANGULO: Inclina la mano L/R", "range": range(120, 160)},
-    {"name": "POSICION: Mueve la mano U/D/L/R", "range": range(160, 200)},
+PHASES: list[tuple[str, range]] = [
+    ("BASE: Normal y estable", range(0, 40)),
+    ("VELOCIDAD: Rapido y lento", range(40, 80)),
+    ("DISTANCIA: Cerca y lejos", range(80, 120)),
+    ("ANGULO: Inclina la mano L/R", range(120, 160)),
+    ("POSICION: Mueve la mano U/D/L/R", range(160, 200)),
 ]
 
 
@@ -192,9 +192,9 @@ def draw_hud(
 
     # 2b. Fase actual e instrucciones de variación
     current_phase_name = "Completado"
-    for phase in PHASES:
-        if saved in phase["range"]:
-            current_phase_name = phase["name"]
+    for name, r in PHASES:
+        if saved in r:
+            current_phase_name = name
             break
     phase_text = f"FASE: {current_phase_name}"
     cv2.putText(frame, phase_text, (20, 120), font, 0.7, (255, 255, 0), 2)
