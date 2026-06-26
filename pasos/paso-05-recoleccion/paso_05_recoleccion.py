@@ -38,16 +38,16 @@ FLASH_DURATION   = 15
 
 # Guided phases for data collection to introduce variability (Left & Right hands)
 PHASES: list[tuple[str, range, str]] = [
-    ("Derecha - Base", range(0, 20), "Mano DERECHA: Mantenla estable en posicion comoda."),
-    ("Derecha - Velocidad", range(20, 40), "Mano DERECHA: Realiza movimientos rapidos y lentos."),
-    ("Derecha - Distancia", range(40, 60), "Mano DERECHA: Acerca y aleja la mano de la camara."),
-    ("Derecha - Angulo", range(60, 80), "Mano DERECHA: Rota e inclina la muneca a los lados."),
-    ("Derecha - Posicion", range(80, 100), "Mano DERECHA: Desplaza la mano por todo el cuadro."),
-    ("Izquierda - Base", range(100, 120), "Mano IZQUIERDA: Mantenla estable en posicion comoda."),
-    ("Izquierda - Velocidad", range(120, 140), "Mano IZQUIERDA: Realiza movimientos rapidos y lentos."),
-    ("Izquierda - Distancia", range(140, 160), "Mano IZQUIERDA: Acerca y aleja la mano de la camara."),
-    ("Izquierda - Angulo", range(160, 180), "Mano IZQUIERDA: Rota e inclina la muneca a los lados."),
-    ("Izquierda - Posicion", range(180, 200), "Mano IZQUIERDA: Desplaza la mano por todo el cuadro."),
+    ("Derecha - Base", range(0, 20), "Mano DERECHA: Realiza el gesto estatico frente a la camara."),
+    ("Derecha - Velocidad", range(20, 40), "Mano DERECHA: Realiza el gesto alternando muy rapido y muy lento."),
+    ("Derecha - Distancia", range(40, 60), "Mano DERECHA: Realiza el gesto acercando y alejando la mano de la camara."),
+    ("Derecha - Angulo", range(60, 80), "Mano DERECHA: Realiza el gesto rotando e inclinando la muneca a los lados."),
+    ("Derecha - Posicion", range(80, 100), "Mano DERECHA: Realiza el gesto moviendo la mano por todo el cuadro."),
+    ("Izquierda - Base", range(100, 120), "Mano IZQUIERDA: Realiza el gesto estatico frente a la camara."),
+    ("Izquierda - Velocidad", range(120, 140), "Mano IZQUIERDA: Realiza el gesto alternando muy rapido y muy lento."),
+    ("Izquierda - Distancia", range(140, 160), "Mano IZQUIERDA: Realiza el gesto acercando y alejando la mano de la camara."),
+    ("Izquierda - Angulo", range(160, 180), "Mano IZQUIERDA: Realiza el gesto rotando e inclinando la muneca a los lados."),
+    ("Izquierda - Posicion", range(180, 200), "Mano IZQUIERDA: Realiza el gesto moviendo la mano por todo el cuadro."),
 ]
 
 
