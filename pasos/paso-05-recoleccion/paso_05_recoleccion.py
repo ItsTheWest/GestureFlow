@@ -151,6 +151,43 @@ def draw_countdown(frame: np.ndarray, gesture: str, seconds_left: int) -> None:
 # ---------------------------------------------------------------------------
 # Step 4 — HUD rendering during automatic recording
 # ---------------------------------------------------------------------------
+def draw_floating_card(
+    frame: np.ndarray,
+    title: str,
+    text: str,
+    countdown: int | None = None
+) -> None:
+    """Dibuja una tarjeta flotante semi-transparente para instrucciones en el HUD."""
+    h, w = frame.shape[:2]
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    
+    # Ancho dinamico basado en resolucion
+    card_w = int(w * 0.85)
+    card_h = 75
+    card_x = (w - card_w) // 2
+    card_y = 120
+    
+    overlay = frame.copy()
+    # Rectangulo oscuro de fondo
+    cv2.rectangle(overlay, (card_x, card_y), (card_x + card_w, card_y + card_h), (25, 25, 25), -1)
+    # Borde amarillo/cian brillante
+    cv2.rectangle(overlay, (card_x, card_y), (card_x + card_w, card_y + card_h), (0, 255, 255), 1)
+    cv2.addWeighted(overlay, 0.8, frame, 0.2, 0, frame)
+    
+    # Dibujar informacion
+    cv2.putText(frame, title, (card_x + 15, card_y + 25), font, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+    cv2.putText(frame, text, (card_x + 15, card_y + 53), font, 0.42, (255, 255, 255), 1, cv2.LINE_AA)
+    
+    if countdown is not None:
+        count_str = f"{countdown}s"
+        # Medir ancho para alinearlo a la derecha de la tarjeta
+        (tw, _), _ = cv2.getTextSize(count_str, font, 0.9, 2)
+        cv2.putText(frame, count_str, (card_x + card_w - tw - 15, card_y + 45), font, 0.9, (0, 255, 0), 2, cv2.LINE_AA)
+
+
+# ---------------------------------------------------------------------------
+# Step 4 — HUD rendering during automatic recording
+# ---------------------------------------------------------------------------
 def draw_hud(
     frame: np.ndarray,
     gesture: str,
@@ -188,21 +225,23 @@ def draw_hud(
 
     # 2. Hand detection status
     if hand_detected:
-        hand_text = "HAND: DETECTED"
+        hand_text = "MANO: DETECTADA"
         hand_color = color_green
     else:
-        hand_text = "HAND: NOT DETECTED"
+        hand_text = "MANO: NO DETECTADA"
         hand_color = color_red
     cv2.putText(frame, hand_text, (20, 80), font, 0.7, hand_color, 2)
 
-    # 2b. Current phase and variation instructions
+    # 2b. Current phase and variation instructions using the floating card
     current_phase_name = "Completado"
-    for name, r, _ in PHASES:
+    current_instruction = "Sesion de recoleccion finalizada."
+    for name, r, desc in PHASES:
         if saved in r:
             current_phase_name = name
+            current_instruction = desc
             break
-    phase_text = f"FASE: {current_phase_name}"
-    cv2.putText(frame, phase_text, (20, 120), font, 0.7, (255, 255, 0), 2)
+            
+    draw_floating_card(frame, f"FASE ACTUAL: {current_phase_name.upper()}", current_instruction)
 
     # 3. Circular buffer progress bar (at the bottom)
     bar_w, bar_h = 400, 20
