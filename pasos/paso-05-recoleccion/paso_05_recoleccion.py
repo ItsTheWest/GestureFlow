@@ -446,12 +446,11 @@ def grabar_gesto(gesture_name: str, start_index: int, landmarker: vision.HandLan
                 current_phase_idx = next_phase_idx
                 buffer.clear()
                 
-                # Run the 4-second transition screen
-                transition_duration = 4.0
-                end_transition_time = time.time() + transition_duration
+                # Wait for user input (SPACE bar) to continue
                 next_name, _, next_desc = PHASES[current_phase_idx]
                 
-                while time.time() < end_transition_time:
+                paused = True
+                while paused:
                     ret, frame = cap.read()
                     if not ret:
                         break
@@ -478,17 +477,17 @@ def grabar_gesto(gesture_name: str, start_index: int, landmarker: vision.HandLan
                                 if start_idx < len(coords) and end_idx < len(coords):
                                     cv2.line(frame, coords[start_idx], coords[end_idx], (0, 255, 0), 2)
                     
-                    secs_left = int(end_transition_time - time.time()) + 1
                     draw_floating_card(
                         frame,
-                        f"SIGUIENTE: {next_name.upper()} ({secs_left}s)",
-                        f"Preparate: {next_desc}",
-                        secs_left
+                        f"PAUSADO - SIGUIENTE: {next_name.upper()}",
+                        f"{next_desc} | PRESIONA ESPACIO PARA CONTINUAR"
                     )
                     
                     cv2.imshow(window_name, frame)
                     key = cv2.waitKey(1) & 0xFF
-                    if key == ord('q'):
+                    if key == ord(' '):
+                        paused = False
+                    elif key == ord('q'):
                         print("Grabacion interrumpida por el usuario.")
                         cap.release()
                         cv2.destroyAllWindows()
