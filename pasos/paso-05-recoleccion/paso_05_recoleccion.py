@@ -38,12 +38,12 @@ FLASH_DURATION   = 15
 
 # Guided phases for data collection to introduce variability (Left & Right hands)
 PHASES: list[tuple[str, range, str]] = [
-    ("Derecha - Base", range(0, 20), "Mano DERECHA: Realiza el gesto estatico frente a la camara."),
+    ("Derecha - Base", range(0, 20), "Mano DERECHA: Realiza el gesto a velocidad normal de forma natural."),
     ("Derecha - Velocidad", range(20, 40), "Mano DERECHA: Realiza el gesto alternando muy rapido y muy lento."),
     ("Derecha - Distancia", range(40, 60), "Mano DERECHA: Realiza el gesto acercando y alejando la mano de la camara."),
     ("Derecha - Angulo", range(60, 80), "Mano DERECHA: Realiza el gesto rotando e inclinando la muneca a los lados."),
     ("Derecha - Posicion", range(80, 100), "Mano DERECHA: Realiza el gesto moviendo la mano por todo el cuadro."),
-    ("Izquierda - Base", range(100, 120), "Mano IZQUIERDA: Realiza el gesto estatico frente a la camara."),
+    ("Izquierda - Base", range(100, 120), "Mano IZQUIERDA: Realiza el gesto a velocidad normal de forma natural."),
     ("Izquierda - Velocidad", range(120, 140), "Mano IZQUIERDA: Realiza el gesto alternando muy rapido y muy lento."),
     ("Izquierda - Distancia", range(140, 160), "Mano IZQUIERDA: Realiza el gesto acercando y alejando la mano de la camara."),
     ("Izquierda - Angulo", range(160, 180), "Mano IZQUIERDA: Realiza el gesto rotando e inclinando la muneca a los lados."),
