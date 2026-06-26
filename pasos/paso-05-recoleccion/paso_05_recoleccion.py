@@ -36,13 +36,18 @@ COUNTDOWN_SECS   = 5
 # Frames the confirmation flash lasts in the HUD (~0.5 s at 30 fps)
 FLASH_DURATION   = 15
 
-# Guided phases for data collection to introduce variability
-PHASES: list[tuple[str, range]] = [
-    ("BASE: Normal y estable", range(0, 40)),
-    ("VELOCIDAD: Rapido y lento", range(40, 80)),
-    ("DISTANCIA: Cerca y lejos", range(80, 120)),
-    ("ANGULO: Inclina la mano L/R", range(120, 160)),
-    ("POSICION: Mueve la mano U/D/L/R", range(160, 200)),
+# Guided phases for data collection to introduce variability (Left & Right hands)
+PHASES: list[tuple[str, range, str]] = [
+    ("Derecha - Base", range(0, 20), "Mano DERECHA: Mantenla estable en posicion comoda."),
+    ("Derecha - Velocidad", range(20, 40), "Mano DERECHA: Realiza movimientos rapidos y lentos."),
+    ("Derecha - Distancia", range(40, 60), "Mano DERECHA: Acerca y aleja la mano de la camara."),
+    ("Derecha - Angulo", range(60, 80), "Mano DERECHA: Rota e inclina la muneca a los lados."),
+    ("Derecha - Posicion", range(80, 100), "Mano DERECHA: Desplaza la mano por todo el cuadro."),
+    ("Izquierda - Base", range(100, 120), "Mano IZQUIERDA: Mantenla estable en posicion comoda."),
+    ("Izquierda - Velocidad", range(120, 140), "Mano IZQUIERDA: Realiza movimientos rapidos y lentos."),
+    ("Izquierda - Distancia", range(140, 160), "Mano IZQUIERDA: Acerca y aleja la mano de la camara."),
+    ("Izquierda - Angulo", range(160, 180), "Mano IZQUIERDA: Rota e inclina la muneca a los lados."),
+    ("Izquierda - Posicion", range(180, 200), "Mano IZQUIERDA: Desplaza la mano por todo el cuadro."),
 ]
 
 
@@ -192,7 +197,7 @@ def draw_hud(
 
     # 2b. Current phase and variation instructions
     current_phase_name = "Completado"
-    for name, r in PHASES:
+    for name, r, _ in PHASES:
         if saved in r:
             current_phase_name = name
             break
