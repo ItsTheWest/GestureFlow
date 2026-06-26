@@ -46,9 +46,12 @@ def build_landmarker() -> vision.HandLandmarker:
     base_options = python.BaseOptions(model_asset_path=str(MODEL_PATH)) 
 
     options = vision.HandLandmarkerOptions(
-       base_options=base_options,
-       running_mode=vision.RunningMode.IMAGE,  
-       num_hands=2,                         
+        base_options=base_options,
+        running_mode=vision.RunningMode.VIDEO,  
+        num_hands=2,
+        min_hand_detection_confidence=0.5,
+        min_hand_presence_confidence=0.5,
+        min_tracking_confidence=0.5,
     )
 
     return vision.HandLandmarker.create_from_options(options)
@@ -328,6 +331,7 @@ def grabar_gesto(gesture_name: str, start_index: int, landmarker: vision.HandLan
     buffer: deque = deque(maxlen=SEQUENCE_LENGTH) # Búfer circular de longitud fija
     frame_counter = 0
     flash_timer = 0
+    start_time = time.time()
 
     while sequences_saved < NUM_SEQUENCES:
         ret, frame = cap.read()
@@ -341,8 +345,9 @@ def grabar_gesto(gesture_name: str, start_index: int, landmarker: vision.HandLan
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
         
-        # Ejecutar inferencia síncrona
-        results = landmarker.detect(mp_image)
+        # Ejecutar inferencia síncrona en modo VIDEO con timestamp
+        timestamp_ms = int((time.time() - start_time) * 1000)
+        results = landmarker.detect_for_video(mp_image, timestamp_ms)
 
         # Extraer características (126 coordenadas) y añadir al búfer circular
         keypoints = extract_keypoints(results)
