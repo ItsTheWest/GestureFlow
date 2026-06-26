@@ -118,7 +118,7 @@ def construir_modelo_mejorado(input_shape: tuple[int, ...], num_classes: int) ->
 
 def entrenar_modelo(model: Sequential, X_train: np.ndarray, Y_train_cat: np.ndarray, X_test: np.ndarray, Y_test_cat: np.ndarray) -> None:
    callback = [] # Se inicializa la lista de callbacks
-   callback.append(EarlyStopping(monitor="val_accuracy",patience=EPOCHS,restore_best_weights=True)) # Se agrega el callback de early stopping
+   callback.append(EarlyStopping(monitor="val_accuracy", patience=15, restore_best_weights=True)) # Se agrega el callback de early stopping
    callback.append(ModelCheckpoint(
     filepath=MODEL_PATH, # Se define la ruta donde se guardara el modelo
     monitor='val_accuracy', # Se define la metrica a monitorear
