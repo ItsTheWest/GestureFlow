@@ -1,18 +1,18 @@
-# --- Librerías de visión y procesamiento ---
-import cv2  # OpenCV: captura de cámara (BGR), ventanas y conversión de color
-import mediapipe as mp  # MediaPipe: imagen para inferencia y utilidades de dibujo
-from mediapipe.tasks import python  # BaseOptions: ruta al modelo .task
-from mediapipe.tasks.python import vision  # HandLandmarker, RunningMode y detect()
-from pathlib import Path  # Rutas absolutas sin depender del directorio desde el que ejecutas
+# --- Vision and processing libraries ---
+import cv2  # OpenCV: camera capture (BGR), windows and color conversion
+import mediapipe as mp  # MediaPipe: image for inference and drawing utilities
+from mediapipe.tasks import python  # BaseOptions: path to the .task model
+from mediapipe.tasks.python import vision  # HandLandmarker, RunningMode and detect()
+from pathlib import Path  # Absolute paths without depending on the execution directory
 
 mp_drawing = mp.tasks.vision.drawing_utils
 mp_drawing_styles = mp.tasks.vision.drawing_styles
 mp_hands = mp.tasks.vision.HandLandmarksConnections
 
-# --- Rutas relativas al script (mismo patrón que prueba.py y pasos futuros) ---
-SCRIPT_DIR = Path(__file__).resolve().parent  # Carpeta de este paso: pasos/paso-02-dibujo/
-PROJECT_ROOT = SCRIPT_DIR.parent.parent  # Raíz GestureFlow/ (sube dos niveles desde paso-02-dibujo)
-MODEL_PATH = PROJECT_ROOT / "assets" / "models" / "hand_landmarker.task"  # Modelo compartido
+# --- Paths relative to the script (same pattern as prueba.py and future steps) ---
+SCRIPT_DIR = Path(__file__).resolve().parent  # Folder of this step: pasos/paso-02-dibujo/
+PROJECT_ROOT = SCRIPT_DIR.parent.parent  # GestureFlow/ root (two levels up from paso-02-dibujo)
+MODEL_PATH = PROJECT_ROOT / "assets" / "models" / "hand_landmarker.task"  # Shared model
 
 
 def dibujar_manos(frame, results):
@@ -24,7 +24,7 @@ def dibujar_manos(frame, results):
         return False
 
     for hand_landmarks in results.hand_landmarks:
-        # Círculos en cada punto + líneas del esqueleto (HAND_CONNECTIONS)
+        # Circles on each point + skeleton lines (HAND_CONNECTIONS)
         mp_drawing.draw_landmarks(
             frame,
             hand_landmarks,
@@ -35,38 +35,38 @@ def dibujar_manos(frame, results):
     return True
 
 
-# --- Comprobar que el modelo existe antes de abrir la cámara ---
+# --- Verify the model exists before opening the camera ---
 if not MODEL_PATH.is_file():
-    raise FileNotFoundError(f"No se encontro el modelo: {MODEL_PATH}")
+    raise FileNotFoundError(f"Model not found: {MODEL_PATH}")
 
-# --- Apertura de la webcam (heredado del paso 01) ---
-cap = cv2.VideoCapture(0)  # 0 = cámara por defecto; prueba 1 si no abre
+# --- Webcam setup (inherited from step 01) ---
+cap = cv2.VideoCapture(0)  # 0 = default camera; try 1 if it doesn't open
 if not cap.isOpened():
-    print("Error: No se pudo abrir la camara")
+    print("Error: Could not open the camera")
     exit(1)
 
-# --- Configuración del detector HandLandmarker (misma idea que prueba.py) ---
+# --- HandLandmarker detector configuration (same idea as prueba.py) ---
 base_options = python.BaseOptions(model_asset_path=str(MODEL_PATH))
 options = vision.HandLandmarkerOptions(
     base_options=base_options,
-    running_mode=vision.RunningMode.IMAGE,  # Un frame a la vez (no LIVE_STREAM aún)
-    num_hands=2,  # Máximo de manos a buscar en cada captura con ESPACIO
+    running_mode=vision.RunningMode.IMAGE,  # One frame at a time (not LIVE_STREAM yet)
+    num_hands=2,  # Maximum number of hands to detect in each SPACE capture
 )
 
-# El context manager libera el modelo al salir del bloque with
+# The context manager releases the model when leaving the with block
 with vision.HandLandmarker.create_from_options(options) as landmarker:
     print("ESPACIO = detectar y dibujar manos | Q = salir")
 
     while True:
         ret, frame = cap.read()
         if not ret:
-            print("Error: No se pudo leer el frame")
+            print("Error: Could not read the frame")
             break
 
-        frame = cv2.flip(frame, 1)  # Espejo horizontal (misma orientación que paso 01)
-        preview = frame.copy()  # Copia para el vídeo en vivo sin dibujar encima todavía
+        frame = cv2.flip(frame, 1)  # Horizontal mirror (same orientation as step 01)
+        preview = frame.copy()  # Copy for the live feed without drawing on top yet
 
-        # Instrucciones en la ventana de previsualización
+        # Instructions in the preview window
         cv2.putText(
             preview,
             "ESPACIO: detectar | Q: salir",
@@ -78,14 +78,14 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
         )
         cv2.imshow("Paso 02 - Dibujo", preview)
 
-        key = cv2.waitKey(1) & 0xFF  # Tecla en ~1 ms; permite bucle fluido
+        key = cv2.waitKey(1) & 0xFF  # Key press in ~1 ms; keeps the loop smooth
         if key == ord("q"):
             break
 
         if key == ord(" "):
-            # Congelar el frame actual para inferencia y dibujo (no el preview)
+            # Freeze the current frame for inference and drawing (not the preview)
             snapshot = frame.copy()
-            # MediaPipe espera RGB; OpenCV entrega BGR → conversión obligatoria
+            # MediaPipe expects RGB; OpenCV delivers BGR → mandatory conversion
             mp_image = mp.Image(
                 image_format=mp.ImageFormat.SRGB,
                 data=cv2.cvtColor(snapshot, cv2.COLOR_BGR2RGB),
@@ -93,15 +93,15 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
             results = landmarker.detect(mp_image)
 
             if dibujar_manos(snapshot, results):
-                print(f"Manos detectadas: {len(results.hand_landmarks)}")
+                print(f"Hands detected: {len(results.hand_landmarks)}")
             else:
-                print("No se detectaron manos")
+                print("No hands detected")
 
-            # Mostrar el snapshot con manos dibujadas hasta pulsar otra tecla
+            # Show the snapshot with drawn hands until another key is pressed
             cv2.imshow("Paso 02 - Dibujo", snapshot)
-            cv2.waitKey(0)  # Pausa hasta tecla (igual que prueba.py tras detectar)
+            cv2.waitKey(0)  # Pause until a key is pressed (same as prueba.py after detecting)
 
-# --- Liberar cámara y cerrar ventanas (siempre al salir del bucle) ---
+# --- Release camera and close windows (always on loop exit) ---
 cap.release()
 cv2.destroyAllWindows()
 

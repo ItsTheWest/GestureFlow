@@ -1,4 +1,4 @@
-"""utilidades compartidas para el proyecto de deteccion de gestos"""
+"""Shared utilities for the gesture detection project."""
 from pathlib import Path
 
 import numpy as np
@@ -6,19 +6,18 @@ from mediapipe.tasks.python import vision
 
 
 def extract_keypoints(results: vision.HandLandmarkerResult) -> np.ndarray:
-    """extrae exactamente 126 coordenadas (63 izquierda + 63 derecha) de un resultado de detección.
+    """Extract exactly 126 coordinates (63 left + 63 right) from a detection result.
 
-    Las manos ausentes en el frame se representan como vectores cero, garantizando
-    una salida de longitud fija sin importar cuántas manos detecte MediaPipe.
-    Este contrato de forma debe ser idéntico entre la recopilación de datos (paso_05)
-    y la inferencia en tiempo real (paso_07) — cualquier divergencia corrompe silenciosamente
-    las predicciones.
+    Missing hands in the frame are represented as zero vectors, guaranteeing
+    a fixed-length output regardless of how many hands MediaPipe detects.
+    This shape contract must be identical between data collection (paso_05)
+    and real-time inference (paso_07) — any divergence silently corrupts predictions.
 
     Args:
-        results: Objeto de resultado devuelto por HandLandmarker.detect().
+        results: Result object returned by HandLandmarker.detect().
 
     Returns:
-        np.ndarray de forma (126,) y dtype float32. 
+        np.ndarray of shape (126,) and dtype float32.
     """
     left_hand  = np.zeros(63, dtype=np.float32)
     right_hand = np.zeros(63, dtype=np.float32)
@@ -53,30 +52,30 @@ def extract_keypoints(results: vision.HandLandmarkerResult) -> np.ndarray:
 
 
 def get_gesture_names(base_path: Path) -> list[str]:
-    """retorna nombres de clases de gestos ordenados alfabéticamente por nombre de carpeta.
+    """Return gesture class names sorted alphabetically by folder name.
 
-    El orden de clasificación define el mapeo de etiquetas a índices utilizado por el modelo.
-    Los llamadores deben usar esta función (no un bucle manual) para garantizar
-    un orden consistente entre el entrenamiento y la inferencia.
+    The sort order defines the label-to-index mapping used by the model.
+    Callers must use this function (not a manual loop) to guarantee
+    a consistent order between training and inference.
 
     Args:
-        base_path: Directorio cuyas subcarpetas inmediatas son clases de gestos.
+        base_path: Directory whose immediate subdirectories are gesture classes.
 
     Returns:
-        Lista ordenada de nombres de carpetas de gestos.
+        Sorted list of gesture folder names.
 
     Raises:
-        FileNotFoundError: Si base_path no existe.
-        ValueError: Si se encuentran menos de 2 clases de gestos.
+        FileNotFoundError: If base_path does not exist.
+        ValueError: If fewer than 2 gesture classes are found.
     """
     if not base_path.exists():
-        raise FileNotFoundError(f"Directorio de gestos no encontrado: {base_path}")
+        raise FileNotFoundError(f"Gesture directory not found: {base_path}")
 
     names = sorted(p.name for p in base_path.iterdir() if p.is_dir())
 
     if len(names) < 2:
         raise ValueError(
-            f"Se requieren al menos 2 clases de gestos, se encontraron {len(names)} en {base_path}"
+            f"At least 2 gesture classes are required, found {len(names)} in {base_path}"
         )
 
     return names
