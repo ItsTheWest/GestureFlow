@@ -22,18 +22,28 @@ MODEL_PATH   = PROJECT_ROOT / "assets" / "models" / "hand_landmarker.task"
 # ---------------------------------------------------------------------------
 SEQUENCE_LENGTH  = 30   # Frames per sequence (~1 second at 30 fps)
 NUM_FEATURES     = 126  # 42 landmarks (21 per hand) × 3 coordinates (x, y, z)
-NUM_SEQUENCES    = 30   # How many examples we collect per gesture
+NUM_SEQUENCES    = 200  # How many examples we collect per gesture
 
 # How often (in frames) we auto-save a sequence.
-# With SEQUENCE_LENGTH=30 and SAVE_EVERY=15 there is 50% overlap:
-# this generates more diversity in the training data.
-SAVE_EVERY       = 15
+# With SEQUENCE_LENGTH=30 and SAVE_EVERY=5 there is 83% overlap,
+# but the guided phases ensure continuous variations are captured.
+SAVE_EVERY       = 5
 
 # Seconds of countdown before automatic recording begins
-COUNTDOWN_SECS   = 3
+# We set it to 5 seconds to give the user enough time to prepare
+COUNTDOWN_SECS   = 5
 
 # Frames the confirmation flash lasts in the HUD (~0.5 s at 30 fps)
 FLASH_DURATION   = 15
+
+# Guided phases for data collection to introduce variability
+PHASES = [
+    {"name": "BASE: Normal y estable", "range": range(0, 40)},
+    {"name": "VELOCIDAD: Rapido y lento", "range": range(40, 80)},
+    {"name": "DISTANCIA: Cerca y lejos", "range": range(80, 120)},
+    {"name": "ANGULO: Inclina la mano L/R", "range": range(120, 160)},
+    {"name": "POSICION: Mueve la mano U/D/L/R", "range": range(160, 200)},
+]
 
 
 # ---------------------------------------------------------------------------
@@ -179,6 +189,15 @@ def draw_hud(
         hand_text = "MANO: NO DETECTADA"
         hand_color = color_red
     cv2.putText(frame, hand_text, (20, 80), font, 0.7, hand_color, 2)
+
+    # 2b. Fase actual e instrucciones de variación
+    current_phase_name = "Completado"
+    for phase in PHASES:
+        if saved in phase["range"]:
+            current_phase_name = phase["name"]
+            break
+    phase_text = f"FASE: {current_phase_name}"
+    cv2.putText(frame, phase_text, (20, 120), font, 0.7, (255, 255, 0), 2)
 
     # 3. Barra de progreso del búfer circular (en la parte inferior)
     bar_w, bar_h = 400, 20
