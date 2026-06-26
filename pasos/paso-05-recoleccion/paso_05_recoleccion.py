@@ -395,6 +395,12 @@ def grabar_gesto(gesture_name: str, start_index: int, landmarker: vision.HandLan
     frame_counter = 0
     flash_timer = 0
     start_time = time.time()
+    
+    current_phase_idx = 0
+    for idx, (_, r, _) in enumerate(PHASES):
+        if sequences_saved in r:
+            current_phase_idx = idx
+            break
 
     while sequences_saved < NUM_SEQUENCES:
         ret, frame = cap.read()
@@ -428,6 +434,67 @@ def grabar_gesto(gesture_name: str, start_index: int, landmarker: vision.HandLan
             print(f"Sequence {sequences_saved} saved successfully.") # Print success message
             sequences_saved += 1 # Increment the saved sequence counter
             flash_timer = FLASH_DURATION # Reset the flash timer
+            
+            # Check if we transitioned to a new phase
+            next_phase_idx = -1
+            for idx, (_, r, _) in enumerate(PHASES):
+                if sequences_saved in r:
+                    next_phase_idx = idx
+                    break
+            
+            if next_phase_idx != -1 and next_phase_idx > current_phase_idx:
+                current_phase_idx = next_phase_idx
+                buffer.clear()
+                
+                # Run the 4-second transition screen
+                transition_duration = 4.0
+                end_transition_time = time.time() + transition_duration
+                next_name, _, next_desc = PHASES[current_phase_idx]
+                
+                while time.time() < end_transition_time:
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    frame = cv2.flip(frame, 1)
+                    
+                    # Detect and render landmarker results so hand is visible
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
+                    results = landmarker.detect_for_video(mp_image, int((time.time() - start_time) * 1000))
+                    
+                    # Draw connections manually
+                    if results.hand_landmarks:
+                        h_y, w_x = frame.shape[:2]
+                        for hand_landmarks_list in results.hand_landmarks:
+                            coords = [(int(lm.x * w_x), int(lm.y * h_y)) for lm in hand_landmarks_list]
+                            for start_idx, end_idx in [
+                                (0, 1), (1, 2), (2, 3), (3, 4),
+                                (0, 5), (5, 6), (6, 7), (7, 8),
+                                (0, 9), (9, 10), (10, 11), (11, 12),
+                                (0, 13), (13, 14), (14, 15), (15, 16),
+                                (0, 17), (17, 18), (18, 19), (19, 20),
+                                (5, 9), (9, 13), (13, 17),
+                            ]:
+                                if start_idx < len(coords) and end_idx < len(coords):
+                                    cv2.line(frame, coords[start_idx], coords[end_idx], (0, 255, 0), 2)
+                    
+                    secs_left = int(end_transition_time - time.time()) + 1
+                    draw_floating_card(
+                        frame,
+                        f"SIGUIENTE: {next_name.upper()} ({secs_left}s)",
+                        f"Preparate: {next_desc}",
+                        secs_left
+                    )
+                    
+                    cv2.imshow(window_name, frame)
+                    key = cv2.waitKey(1) & 0xFF
+                    if key == ord('q'):
+                        print("Grabacion interrumpida por el usuario.")
+                        cap.release()
+                        cv2.destroyAllWindows()
+                        return
+                        
+                frame_counter = 0
 
         # Render HUD layers
         draw_hud(
