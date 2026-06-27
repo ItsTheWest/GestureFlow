@@ -6,6 +6,8 @@ The camera feed is embedded directly inside the GUI viewport, and its processing
 mode changes dynamically depending on the selected step.
 """
 
+import queue
+import subprocess
 from typing import Any
 
 import customtkinter as ctk
@@ -58,3 +60,184 @@ class StepCard(ctk.CTkFrame):
             wraplength=280
         )
         self.desc_label.pack(anchor="w", padx=16, pady=(0, 12))
+
+
+class GestureFlowApp(ctk.CTk):
+    """Main CustomTkinter application class orchestrating steps 4 to 7."""
+
+    def __init__(self) -> None:
+        """Initialize the dashboard layout, variables, and window settings."""
+        super().__init__()
+
+        # Window settings
+        self.title("GestureFlow — Control Panel")
+        self.geometry("1100x700")
+        self.minsize(1000, 650)
+
+        # Set dark theme styling
+        ctk.set_appearance_mode("dark")
+        ctk.set_default_color_theme("dark-blue")
+
+        # Application state variables
+        self.current_mode: str = "Idle"
+        self.active_processes: dict[str, subprocess.Popen] = {}
+        self.log_queue: queue.Queue[str] = queue.Queue()
+
+        # Layout grids
+        self.grid_columnconfigure(0, weight=1, minsize=350)  # Left controls
+        self.grid_columnconfigure(1, weight=2, minsize=650)  # Right camera viewport
+        self.grid_rowconfigure(0, weight=1)
+
+        # ── LEFT PANEL: Controls ────────────────────────────────────────────────
+        self.left_panel = ctk.CTkFrame(self, fg_color="#121212", corner_radius=0)
+        self.left_panel.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
+
+        # Header Title
+        self.header = ctk.CTkLabel(
+            self.left_panel,
+            text="GESTUREFLOW",
+            font=ctk.CTkFont(size=24, weight="bold", family="Helvetica"),
+            text_color="#FFFFFF"
+        )
+        self.header.pack(anchor="w", padx=20, pady=(20, 4))
+
+        self.subtitle = ctk.CTkLabel(
+            self.left_panel,
+            text="Unified Control Panel",
+            font=ctk.CTkFont(size=12),
+            text_color="#00FFCC"
+        )
+        self.subtitle.pack(anchor="w", padx=20, pady=(0, 20))
+
+        # Mode Selection Segmented Button
+        self.lbl_modes = ctk.CTkLabel(
+            self.left_panel,
+            text="Select Pipeline Step Mode:",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#DDDDDD"
+        )
+        self.lbl_modes.pack(anchor="w", padx=20, pady=(0, 6))
+
+        self.mode_selector = ctk.CTkSegmentedButton(
+            self.left_panel,
+            values=["Idle", "Vowels", "Collection", "Training", "Inference"],
+            command=self.change_mode,
+            selected_color="#1F538D"
+        )
+        self.mode_selector.set("Idle")
+        self.mode_selector.pack(fill="x", padx=20, pady=(0, 20))
+
+        # Reusable Dynamic Containers Area
+        self.container_frame = ctk.CTkFrame(self.left_panel, fg_color="transparent")
+        self.container_frame.pack(fill="both", expand=True, padx=20)
+
+        # Step 4 Details Card
+        self.card_step4 = StepCard(
+            self.container_frame,
+            title="Step 4: Vowel Recognition",
+            description="Run static threshold-based vowel recognition using mathematical rules without neural networks."
+        )
+        self.card_step4.pack_forget()
+
+        # Step 5 Details Card
+        self.card_step5 = StepCard(
+            self.container_frame,
+            title="Step 5: Dataset Collection",
+            description="Enter a gesture name below, then use the live viewport to record hand landmark sequences."
+        )
+        self.entry_frame = ctk.CTkFrame(self.card_step5, fg_color="transparent")
+        self.entry_frame.pack(fill="x", padx=16, pady=(0, 12))
+        self.lbl_gesture = ctk.CTkLabel(
+            self.entry_frame,
+            text="Class Name:",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#DDDDDD"
+        )
+        self.lbl_gesture.pack(side="left", padx=(0, 8))
+        self.entry_gesture = ctk.CTkEntry(
+            self.entry_frame,
+            placeholder_text="e.g. ok, click, saludo",
+            fg_color="#2B2B2B",
+            border_color="#3B3B3B",
+            height=28
+        )
+        self.entry_gesture.pack(side="left", fill="x", expand=True)
+
+        self.btn_collect = ctk.CTkButton(
+            self.card_step5,
+            text="Start Data Collection",
+            font=ctk.CTkFont(weight="bold"),
+            fg_color="#2B8E5C",
+            hover_color="#1D603E",
+            command=self.start_step5_action
+        )
+        self.btn_collect.pack(fill="x", padx=16, pady=(0, 12))
+        self.card_step5.pack_forget()
+
+        # Step 6 Details Card
+        self.card_step6 = StepCard(
+            self.container_frame,
+            title="Step 6: LSTM Model Training",
+            description="Train the LSTM network on all folders in your local gesture database. Outputs exported automatically."
+        )
+        self.btn_train = ctk.CTkButton(
+            self.card_step6,
+            text="Train Model (LSTM)",
+            font=ctk.CTkFont(weight="bold"),
+            fg_color="#8E2B8D",
+            hover_color="#631D62",
+            command=self.start_step6_action
+        )
+        self.btn_train.pack(fill="x", padx=16, pady=(0, 12))
+        self.card_step6.pack_forget()
+
+        # Step 7 Details Card
+        self.card_step7 = StepCard(
+            self.container_frame,
+            title="Step 7: LSTM Inference Detections",
+            description="Run real-time neural network predictions inside the viewport to distinguish complex gestures."
+        )
+        self.card_step7.pack_forget()
+
+        # Output Log Box
+        self.console_frame = ctk.CTkFrame(
+            self.left_panel,
+            corner_radius=12,
+            border_width=1,
+            border_color="#3B3B3B",
+            fg_color="#151515"
+        )
+        self.console_frame.pack(fill="both", expand=True, padx=0, pady=(20, 20))
+        self.console_title = ctk.CTkLabel(
+            self.console_frame,
+            text="Dashboard Action Logs",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#888888"
+        )
+        self.console_title.pack(anchor="w", padx=16, pady=(8, 4))
+        self.textbox_logs = ctk.CTkTextbox(
+            self.console_frame,
+            fg_color="#0A0A0A",
+            text_color="#A2F5A2",
+            font=ctk.CTkFont(family="Courier", size=11)
+        )
+        self.textbox_logs.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+
+        # Show initial Idle layout
+        self.change_mode("Idle")
+
+    def change_mode(self, mode: str) -> None:
+        """Switch the current active mode.
+
+        Args:
+            mode: Target mode string identifier.
+        """
+        pass
+
+    def start_step5_action(self) -> None:
+        """Trigger start/stop of dataset recording."""
+        pass
+
+    def start_step6_action(self) -> None:
+        """Launch the step 6 model training script."""
+        pass
