@@ -282,7 +282,8 @@ class CollectionManager:
         frame: np.ndarray,
         results: vision.HandLandmarkerResult,
         timestamp_ms: int,
-        space_pressed: bool = False
+        space_pressed: bool = False,
+        new_results: bool = True
     ) -> np.ndarray:
         """Process a camera frame and update the collection state machine.
 
@@ -291,6 +292,7 @@ class CollectionManager:
             results: MediaPipe HandLandmarker inference results.
             timestamp_ms: Monotonic timestamp for video mode tracking.
             space_pressed: True if the space key was triggered.
+            new_results: True if the results parameter contains new hand coordinates.
 
         Returns:
             np.ndarray: Annotated BGR frame.
@@ -317,7 +319,7 @@ class CollectionManager:
                 self.buffer.clear()
                 self.frame_counter = 0
                 self.start_time = time.time()
-                return self.process_frame(frame, results, timestamp_ms, space_pressed=False)
+                return self.process_frame(frame, results, timestamp_ms, space_pressed=False, new_results=new_results)
             else:
                 draw_countdown(display, self.gesture_name, sec_left)
 
@@ -334,35 +336,36 @@ class CollectionManager:
                     for coord in coords:
                         cv2.circle(display, coord, 3, (0, 0, 255), -1)
 
-            keypoints = extract_keypoints(results)
-            self.buffer.append(keypoints)
-            self.frame_counter += 1
+            if new_results:
+                keypoints = extract_keypoints(results)
+                self.buffer.append(keypoints)
+                self.frame_counter += 1
 
-            if len(self.buffer) == SEQUENCE_LENGTH and hand_detected and (self.frame_counter % SAVE_EVERY == 0):
-                output_dir = PROJECT_ROOT / "gestos" / self.gesture_name
-                output_dir.mkdir(parents=True, exist_ok=True)
+                if len(self.buffer) == SEQUENCE_LENGTH and hand_detected and (self.frame_counter % SAVE_EVERY == 0):
+                    output_dir = PROJECT_ROOT / "gestos" / self.gesture_name
+                    output_dir.mkdir(parents=True, exist_ok=True)
 
-                sequence_data = np.array(self.buffer, dtype=np.float32)
-                file_path = output_dir / f"{self.sequences_saved}.npy"
-                np.save(str(file_path), sequence_data)
+                    sequence_data = np.array(self.buffer, dtype=np.float32)
+                    file_path = output_dir / f"{self.sequences_saved}.npy"
+                    np.save(str(file_path), sequence_data)
 
-                self.sequences_saved += 1
-                self.flash_timer = FLASH_DURATION
+                    self.sequences_saved += 1
+                    self.flash_timer = FLASH_DURATION
 
-                next_phase_idx = -1
-                for idx, (_, r, _) in enumerate(PHASES):
-                    if self.sequences_saved in r:
-                        next_phase_idx = idx
-                        break
+                    next_phase_idx = -1
+                    for idx, (_, r, _) in enumerate(PHASES):
+                        if self.sequences_saved in r:
+                            next_phase_idx = idx
+                            break
 
-                if next_phase_idx != -1 and next_phase_idx > self.current_phase_idx:
-                    self.current_phase_idx = next_phase_idx
-                    self.buffer.clear()
-                    self.state = "Paused"
+                    if next_phase_idx != -1 and next_phase_idx > self.current_phase_idx:
+                        self.current_phase_idx = next_phase_idx
+                        self.buffer.clear()
+                        self.state = "Paused"
 
-                if self.sequences_saved >= NUM_SEQUENCES:
-                    self.is_active = False
-                    self.state = "Waiting"
+                    if self.sequences_saved >= NUM_SEQUENCES:
+                        self.is_active = False
+                        self.state = "Waiting"
 
             draw_hud(
                 display,

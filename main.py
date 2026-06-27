@@ -131,6 +131,12 @@ class GestureFlowApp(ctk.CTk):
         self.inf_last_print_time: float = 0.0
         self.prediction_lock: threading.Lock = threading.Lock()
 
+        # MediaPipe Async State Variables
+        self.latest_results: Any = None
+        self.results_lock: threading.Lock = threading.Lock()
+        self.mp_processing: bool = False
+        self.results_updated: bool = False
+
         # Bind space key for collection flow control
         self.bind("<space>", self.on_space_pressed)
 
@@ -274,6 +280,17 @@ class GestureFlowApp(ctk.CTk):
         )
         self.textbox_logs.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
+        # Exit Button
+        self.btn_exit = ctk.CTkButton(
+            self.left_panel,
+            text="Salir",
+            font=ctk.CTkFont(weight="bold"),
+            fg_color="#903030",
+            hover_color="#602020",
+            command=self.destroy
+        )
+        self.btn_exit.pack(fill="x", padx=20, pady=(0, 20), side="bottom")
+
         # Show initial Idle layout
         self.change_mode("Idle")
 
@@ -370,9 +387,34 @@ class GestureFlowApp(ctk.CTk):
         # Mirror camera frame
         frame = cv2.flip(frame, 1)
 
-        # Process frame based on current active mode
-        timestamp_ms = int(time.time() * 1000)
-        frame = self.process_viewport_frame(frame, timestamp_ms)
+        # Trigger background hand landmarker detection if loaded and not busy
+        if self.landmarker is not None and not self.mp_processing:
+            self.mp_processing = True
+            frame_copy = frame.copy()
+            timestamp_ms = int(time.time() * 1000)
+
+            def detect_bg() -> None:
+                try:
+                    frame_rgb = cv2.cvtColor(frame_copy, cv2.COLOR_BGR2RGB)
+                    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
+                    res = self.landmarker.detect_for_video(mp_image, timestamp_ms)
+                    with self.results_lock:
+                        self.latest_results = res
+                        self.results_updated = True
+                except Exception as e:
+                    print(f"Error in background landmarker: {e}")
+                finally:
+                    self.mp_processing = False
+
+            threading.Thread(target=detect_bg, daemon=True).start()
+
+        # Render overlays using the latest results in the main thread (non-blocking!)
+        with self.results_lock:
+            current_results = self.latest_results
+            new_results_available = self.results_updated
+            self.results_updated = False
+
+        frame = self.process_viewport_frame(frame, current_results, new_results_available)
 
         # Convert image formats for CustomTkinter label display
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -480,49 +522,30 @@ class GestureFlowApp(ctk.CTk):
         with self.prediction_lock:
             self.inf_prediction_in_progress = False
 
-    def process_viewport_frame(self, frame: np.ndarray, timestamp_ms: int) -> np.ndarray:
+    def process_viewport_frame(self, frame: np.ndarray, results: Any, new_results: bool) -> np.ndarray:
         """Process the BGR camera frame based on the active dashboard mode.
 
         Args:
             frame: Raw camera frame in BGR format.
-            timestamp_ms: Current system milliseconds timestamp.
+            results: MediaPipe hand landmarker results (computed asynchronously).
+            new_results: True if the results parameter contains updated frame keypoints.
 
         Returns:
             np.ndarray: BGR frame with overlay renderings applied.
         """
-        # Draw dynamic header indicating active mode in the viewport
-        cv2.putText(
-            frame,
-            f"MODE: {self.current_mode.upper()}",
-            (20, 40),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (0, 255, 204),
-            2,
-            cv2.LINE_AA
-        )
-
         if self.current_mode == "Vowels" and self.landmarker and self.vowel_validator:
             # Process static vowel recognition using reusable class
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
-            results = self.landmarker.detect_for_video(mp_image, timestamp_ms)
-
-            self.paso_04.dibujar_manos(frame, results)
-            self.vowel_validator.update(results)
+            if results:
+                self.paso_04.dibujar_manos(frame, results)
+                self.vowel_validator.update(results)
             self.vowel_validator.draw_status(frame)
 
         elif self.current_mode == "Collection" and self.landmarker and self.col_running and self.col_manager:
             # Process automatic dataset collection using reusable class
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
-            results = self.landmarker.detect_for_video(mp_image, timestamp_ms)
-
-            # Retrieve and reset space bar flag
             space_pressed = self.col_space_pressed
             self.col_space_pressed = False
 
-            frame = self.col_manager.process_frame(frame, results, timestamp_ms, space_pressed)
+            frame = self.col_manager.process_frame(frame, results, int(time.time() * 1000), space_pressed, new_results)
 
             # Sync progress index back to local app parameters
             self.col_saved_sequences = self.col_manager.sequences_saved
@@ -537,50 +560,49 @@ class GestureFlowApp(ctk.CTk):
             elif self.lstm_model is None:
                 cv2.putText(frame, "No Model Loaded.", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 1, cv2.LINE_AA)
             else:
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
-                results = self.landmarker.detect_for_video(mp_image, timestamp_ms)
+                if results:
+                    self.paso_07.dibujar_landmarks(frame, results)
 
-                self.paso_07.dibujar_landmarks(frame, results)
+                    if new_results:
+                        hand_detected = bool(results.hand_landmarks)
+                        if not hand_detected:
+                            with self.prediction_lock:
+                                self.inf_current_gesture = ""
+                            self.inf_buffer.clear()
+                        else:
+                            keypoints = extract_keypoints(results)
+                            self.inf_buffer.append(keypoints)
 
-                hand_detected = bool(results.hand_landmarks)
-                if not hand_detected:
-                    cv2.putText(frame, "No hand detected", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 1, cv2.LINE_AA)
-                    with self.prediction_lock:
-                        self.inf_current_gesture = ""
-                    self.inf_buffer.clear()
+                            with self.prediction_lock:
+                                can_predict = len(self.inf_buffer) == config.SEQUENCE_LENGTH and not self.inf_prediction_in_progress
+                                if can_predict:
+                                    self.inf_prediction_in_progress = True
+
+                            if can_predict:
+                                sequence_snapshot = np.array(self.inf_buffer, dtype=np.float32)
+                                threading.Thread(
+                                    target=self.paso_07.predecir_gesto_async,
+                                    args=(
+                                        self.lstm_model,
+                                        sequence_snapshot,
+                                        self.inf_gestures,
+                                        self.update_prediction_result,
+                                        self.on_prediction_error
+                                    ),
+                                    daemon=True
+                                ).start()
                 else:
-                    keypoints = extract_keypoints(results)
-                    self.inf_buffer.append(keypoints)
+                    cv2.putText(frame, "No hand detected", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 1, cv2.LINE_AA)
 
-                    with self.prediction_lock:
-                        can_predict = len(self.inf_buffer) == config.SEQUENCE_LENGTH and not self.inf_prediction_in_progress
-                        if can_predict:
-                            self.inf_prediction_in_progress = True
+                # Display predictions overlay
+                with self.prediction_lock:
+                    gesture = self.inf_current_gesture
+                    confidence = self.inf_current_confidence
 
-                    if can_predict:
-                        sequence_snapshot = np.array(self.inf_buffer, dtype=np.float32)
-                        threading.Thread(
-                            target=self.paso_07.predecir_gesto_async,
-                            args=(
-                                self.lstm_model,
-                                sequence_snapshot,
-                                self.inf_gestures,
-                                self.update_prediction_result,
-                                self.on_prediction_error
-                            ),
-                            daemon=True
-                        ).start()
-
-                    # Display predictions overlay
-                    with self.prediction_lock:
-                        gesture = self.inf_current_gesture
-                        confidence = self.inf_current_confidence
-
-                    if gesture:
-                        cv2.putText(frame, f"{gesture} ({confidence:.2f})", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
-                    else:
-                        cv2.putText(frame, f"Detecting... ({confidence:.2f})", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 1, cv2.LINE_AA)
+                if gesture:
+                    cv2.putText(frame, f"{gesture} ({confidence:.2f})", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
+                else:
+                    cv2.putText(frame, f"Detecting... ({confidence:.2f})", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 1, cv2.LINE_AA)
 
         elif self.current_mode == "Training":
             cv2.putText(frame, "Training model in background...", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 1, cv2.LINE_AA)
