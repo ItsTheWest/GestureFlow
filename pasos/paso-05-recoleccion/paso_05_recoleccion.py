@@ -8,33 +8,20 @@ import numpy as np
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
-from utils import extract_keypoints
+import config
+from utils import HAND_CONNECTIONS, extract_keypoints
 
 # ---------------------------------------------------------------------------
-# Path resolution — same pattern as previous steps
+# Path resolution and parameters bound to shared configuration
 # ---------------------------------------------------------------------------
-SCRIPT_DIR   = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parent.parent
-MODEL_PATH   = PROJECT_ROOT / "assets" / "models" / "hand_landmarker.task"
-
-# ---------------------------------------------------------------------------
-# Recording parameters 
-# ---------------------------------------------------------------------------
-SEQUENCE_LENGTH  = 30   # Frames per sequence (~1 second at 30 fps)
-NUM_FEATURES     = 126  # 42 landmarks (21 per hand) × 3 coordinates (x, y, z)
-NUM_SEQUENCES    = 200  # How many examples we collect per gesture
-
-# How often (in frames) we auto-save a sequence.
-# With SEQUENCE_LENGTH=30 and SAVE_EVERY=5 there is 83% overlap,
-# but the guided phases ensure continuous variations are captured.
-SAVE_EVERY       = 5
-
-# Seconds of countdown before automatic recording begins
-# We set it to 5 seconds to give the user enough time to prepare
-COUNTDOWN_SECS   = 5
-
-# Frames the confirmation flash lasts in the HUD (~0.5 s at 30 fps)
-FLASH_DURATION   = 15
+PROJECT_ROOT: Path = config.PROJECT_ROOT
+MODEL_PATH: Path = config.MP_TASK_PATH
+SEQUENCE_LENGTH: int = config.SEQUENCE_LENGTH
+NUM_FEATURES: int = config.NUM_FEATURES
+NUM_SEQUENCES: int = config.NUM_SEQUENCES
+SAVE_EVERY: int = config.SAVE_EVERY
+COUNTDOWN_SECS: int = config.COUNTDOWN_SECS
+FLASH_DURATION: int = config.FLASH_DURATION
 
 # Guided phases for data collection to introduce variability (Left & Right hands)
 PHASES: list[tuple[str, range, str]] = [
@@ -298,9 +285,18 @@ def pedir_nombre_gesto() -> tuple[str | None, int | None]:
     output_dir = PROJECT_ROOT / "gestos" / gesture_name
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Count existing .npy files to resume recording sequentially
+    # Count existing .npy files and extract their indices to find the next index
     existing_files = list(output_dir.glob("*.npy"))
-    next_index = len(existing_files)
+    if existing_files:
+        indices: list[int] = []
+        for f in existing_files:
+            try:
+                indices.append(int(f.stem))
+            except ValueError:
+                pass
+        next_index = max(indices) + 1 if indices else 0
+    else:
+        next_index = 0
 
     if next_index > 0:
         print(f"Existing folder detected. Resuming from sequence {next_index}.")
@@ -462,14 +458,7 @@ def grabar_gesto(gesture_name: str, start_index: int, landmarker: vision.HandLan
                         h_y, w_x = frame.shape[:2]
                         for hand_landmarks_list in results.hand_landmarks:
                             coords = [(int(lm.x * w_x), int(lm.y * h_y)) for lm in hand_landmarks_list]
-                            for start_idx, end_idx in [
-                                (0, 1), (1, 2), (2, 3), (3, 4),
-                                (0, 5), (5, 6), (6, 7), (7, 8),
-                                (0, 9), (9, 10), (10, 11), (11, 12),
-                                (0, 13), (13, 14), (14, 15), (15, 16),
-                                (0, 17), (17, 18), (18, 19), (19, 20),
-                                (5, 9), (9, 13), (13, 17),
-                            ]:
+                            for start_idx, end_idx in HAND_CONNECTIONS:
                                 if start_idx < len(coords) and end_idx < len(coords):
                                     cv2.line(frame, coords[start_idx], coords[end_idx], (0, 255, 0), 2)
                     
