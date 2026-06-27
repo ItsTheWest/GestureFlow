@@ -133,11 +133,12 @@ def get_vowel(hand_landmarks: list, hand_label: str) -> str | None:
     # In the mirrored frame the left hand has its thumb at greater X (right side of screen)
     # and the right hand has it at smaller X (left side of screen).
     # is_thumb_down: thumb folded TOWARDS the other fingers (crossing the palm)
-    if hand_label == "Right":
-        # Right hand: thumb crosses towards positive X (right) when bent
+    # Since the camera feed is mirrored, the screen coordinates are inverted relative to actual hand labels:
+    if hand_label == "Left":
+        # Left hand (looks like Right hand on screen): thumb folds to the right (+X)
         is_thumb_down = lm[4].x > lm[3].x
     else:
-        # Left hand: thumb crosses towards negative X (left) when bent
+        # Right hand (looks like Left hand on screen): thumb folds to the left (-X)
         is_thumb_down = lm[4].x < lm[3].x
 
     # is_thumb_on_side: thumb pointing outward (away from the pinky)
