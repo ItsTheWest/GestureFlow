@@ -25,6 +25,7 @@ from tkinter import messagebox
 import numpy as np
 
 import config
+from utils import extract_keypoints, get_gesture_names
 
 
 class StepCard(ctk.CTkFrame):
@@ -80,12 +81,13 @@ class GestureFlowApp(ctk.CTk):
     """Main CustomTkinter application class orchestrating steps 4 to 7."""
 
     def __init__(self) -> None:
-        """Initialize the dashboard layout, variables, and window settings."""
+        """Initialize the dashboard layout, variables, and camera loop."""
         super().__init__()
 
         # Dynamic imports of step logic modules to prevent code duplication
         self.paso_04: Any = importlib.import_module("pasos.paso-04-reconocimiento-vocales.paso_04_vocales")
         self.paso_05: Any = importlib.import_module("pasos.paso-05-recoleccion.paso_05_recoleccion")
+        self.paso_07: Any = importlib.import_module("pasos.paso-07-deteccion-tiempo-real.paso_07_deteccion")
 
         # Window settings
         self.title("GestureFlow — Control Panel")
@@ -97,7 +99,7 @@ class GestureFlowApp(ctk.CTk):
         ctk.set_default_color_theme("dark-blue")
 
         # Application state variables
-        self.current_mode: str = "Idle"
+        self.current_mode: str = "Idle"  # Modes: Idle, Vowels, Collection, Training, Inference
         self.active_processes: dict[str, subprocess.Popen] = {}
         self.log_queue: queue.Queue[str] = queue.Queue()
 
@@ -117,6 +119,17 @@ class GestureFlowApp(ctk.CTk):
         self.col_saved_sequences: int = 0
         self.col_manager: Any = None
         self.col_space_pressed: bool = False
+
+        # Step 7 State Variables (Inference)
+        self.lstm_model: Any = None
+        self.model_loading: bool = False
+        self.inf_gestures: list[str] = []
+        self.inf_buffer: deque[np.ndarray] = deque(maxlen=config.SEQUENCE_LENGTH)
+        self.inf_prediction_in_progress: bool = False
+        self.inf_current_gesture: str = ""
+        self.inf_current_confidence: float = 0.0
+        self.inf_last_print_time: float = 0.0
+        self.prediction_lock: threading.Lock = threading.Lock()
 
         # Bind space key for collection flow control
         self.bind("<space>", self.on_space_pressed)
@@ -316,7 +329,7 @@ class GestureFlowApp(ctk.CTk):
         self.after(100, self.check_log_queue)
 
     def start_camera(self) -> None:
-        """Initialize the OpenCV camera capture."""
+        """Initialize the OpenCV capture stream."""
         if not self.camera_running:
             self.cap = cv2.VideoCapture(0)
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
@@ -325,21 +338,21 @@ class GestureFlowApp(ctk.CTk):
             self.update_camera()
 
     def stop_camera(self) -> None:
-        """Release camera resources."""
+        """Release the camera resources."""
         self.camera_running = False
         if self.cap:
             self.cap.release()
             self.cap = None
 
     def draw_standby_frame(self) -> None:
-        """Draw standby screen frame."""
+        """Draw a standby dark screen on the camera label viewport."""
         standby_img = Image.new("RGB", (640, 480), color=(15, 15, 15))
         img_tk = ImageTk.PhotoImage(image=standby_img)
         self.camera_viewport.configure(image=img_tk)
         self.camera_viewport.image = img_tk
 
     def update_camera(self) -> None:
-        """Loop reading camera frames."""
+        """Read and process frames from the camera in a loop."""
         if not self.camera_running:
             return
 
@@ -354,14 +367,18 @@ class GestureFlowApp(ctk.CTk):
             self.after(33, self.update_camera)
             return
 
+        # Mirror camera frame
         frame = cv2.flip(frame, 1)
 
+        # Process frame based on current active mode
         timestamp_ms = int(time.time() * 1000)
         frame = self.process_viewport_frame(frame, timestamp_ms)
 
+        # Convert image formats for CustomTkinter label display
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         pil_image = Image.fromarray(rgb_frame)
 
+        # Fit image to the viewport frame width/height, maintaining aspect ratio
         viewport_w = self.viewport_container.winfo_width()
         viewport_h = self.viewport_container.winfo_height()
 
@@ -437,16 +454,43 @@ class GestureFlowApp(ctk.CTk):
 
         threading.Thread(target=target_run, daemon=True).start()
 
-    def process_viewport_frame(self, frame: np.ndarray, timestamp_ms: int) -> np.ndarray:
-        """Process BGR frame and render active step overlays.
+    def update_prediction_result(self, gesture_index: int, confidence: float) -> None:
+        """Update inference results in the GUI state (main thread).
 
         Args:
-            frame: Raw BGR camera image.
-            timestamp_ms: System milliseconds timestamp.
+            gesture_index: Argmax index of prediction.
+            confidence: Confidence score of prediction.
+        """
+        with self.prediction_lock:
+            self.inf_prediction_in_progress = False
+
+        now = time.time()
+        if now - self.inf_last_print_time >= 3.0:
+            self.write_log(f"[+] Pred: {self.inf_gestures[gesture_index]} ({confidence:.4f})")
+            self.inf_last_print_time = now
+
+        if confidence > config.CONFIDENCE_THRESHOLD:
+            self.inf_current_gesture = self.inf_gestures[gesture_index]
+        else:
+            self.inf_current_gesture = ""
+        self.inf_current_confidence = confidence
+
+    def on_prediction_error(self) -> None:
+        """Reset prediction lock state on background thread error."""
+        with self.prediction_lock:
+            self.inf_prediction_in_progress = False
+
+    def process_viewport_frame(self, frame: np.ndarray, timestamp_ms: int) -> np.ndarray:
+        """Process the BGR camera frame based on the active dashboard mode.
+
+        Args:
+            frame: Raw camera frame in BGR format.
+            timestamp_ms: Current system milliseconds timestamp.
 
         Returns:
-            np.ndarray: BGR frame with overlay drawings.
+            np.ndarray: BGR frame with overlay renderings applied.
         """
+        # Draw dynamic header indicating active mode in the viewport
         cv2.putText(
             frame,
             f"MODE: {self.current_mode.upper()}",
@@ -459,6 +503,7 @@ class GestureFlowApp(ctk.CTk):
         )
 
         if self.current_mode == "Vowels" and self.landmarker and self.vowel_validator:
+            # Process static vowel recognition using reusable class
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
             results = self.landmarker.detect_for_video(mp_image, timestamp_ms)
@@ -468,24 +513,82 @@ class GestureFlowApp(ctk.CTk):
             self.vowel_validator.draw_status(frame)
 
         elif self.current_mode == "Collection" and self.landmarker and self.col_running and self.col_manager:
+            # Process automatic dataset collection using reusable class
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
             results = self.landmarker.detect_for_video(mp_image, timestamp_ms)
 
+            # Retrieve and reset space bar flag
             space_pressed = self.col_space_pressed
             self.col_space_pressed = False
 
             frame = self.col_manager.process_frame(frame, results, timestamp_ms, space_pressed)
 
+            # Sync progress index back to local app parameters
             self.col_saved_sequences = self.col_manager.sequences_saved
 
             if not self.col_manager.is_active:
                 self.stop_collection_successfully()
 
+        elif self.current_mode == "Inference" and self.landmarker:
+            # Process real-time model predictions using reusable functions
+            if self.model_loading:
+                cv2.putText(frame, "Loading Keras Model...", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 1, cv2.LINE_AA)
+            elif self.lstm_model is None:
+                cv2.putText(frame, "No Model Loaded.", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 1, cv2.LINE_AA)
+            else:
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
+                results = self.landmarker.detect_for_video(mp_image, timestamp_ms)
+
+                self.paso_07.dibujar_landmarks(frame, results)
+
+                hand_detected = bool(results.hand_landmarks)
+                if not hand_detected:
+                    cv2.putText(frame, "No hand detected", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 1, cv2.LINE_AA)
+                    with self.prediction_lock:
+                        self.inf_current_gesture = ""
+                    self.inf_buffer.clear()
+                else:
+                    keypoints = extract_keypoints(results)
+                    self.inf_buffer.append(keypoints)
+
+                    with self.prediction_lock:
+                        can_predict = len(self.inf_buffer) == config.SEQUENCE_LENGTH and not self.inf_prediction_in_progress
+                        if can_predict:
+                            self.inf_prediction_in_progress = True
+
+                    if can_predict:
+                        sequence_snapshot = np.array(self.inf_buffer, dtype=np.float32)
+                        threading.Thread(
+                            target=self.paso_07.predecir_gesto_async,
+                            args=(
+                                self.lstm_model,
+                                sequence_snapshot,
+                                self.inf_gestures,
+                                self.update_prediction_result,
+                                self.on_prediction_error
+                            ),
+                            daemon=True
+                        ).start()
+
+                    # Display predictions overlay
+                    with self.prediction_lock:
+                        gesture = self.inf_current_gesture
+                        confidence = self.inf_current_confidence
+
+                    if gesture:
+                        cv2.putText(frame, f"{gesture} ({confidence:.2f})", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
+                    else:
+                        cv2.putText(frame, f"Detecting... ({confidence:.2f})", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 1, cv2.LINE_AA)
+
+        elif self.current_mode == "Training":
+            cv2.putText(frame, "Training model in background...", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 1, cv2.LINE_AA)
+
         return frame
 
     def change_mode(self, mode: str) -> None:
-        """Switch mode layout and MediaPipe life cycles.
+        """Switch the current active mode and update the controls layout.
 
         Args:
             mode: Target mode string identifier.
@@ -493,11 +596,13 @@ class GestureFlowApp(ctk.CTk):
         self.current_mode = mode
         self.write_log(f"[*] Switched mode to: {mode}")
 
+        # Hide all step cards first
         self.card_step4.pack_forget()
         self.card_step5.pack_forget()
         self.card_step6.pack_forget()
         self.card_step7.pack_forget()
 
+        # Show selected mode details card
         if mode == "Vowels":
             self.card_step4.pack(fill="x", pady=10)
             self.vowel_validator = self.paso_04.VowelValidator(confirmation_time=1.0)
@@ -508,6 +613,7 @@ class GestureFlowApp(ctk.CTk):
         elif mode == "Inference":
             self.card_step7.pack(fill="x", pady=10)
 
+        # Allocate/release MediaPipe HandLandmarker based on active mode
         if mode in ["Vowels", "Collection", "Inference"]:
             if self.landmarker is None:
                 if not config.MP_TASK_PATH.exists():
@@ -530,15 +636,57 @@ class GestureFlowApp(ctk.CTk):
                 self.landmarker = None
                 self.write_log("[*] MediaPipe HandLandmarker closed.")
 
+        # Special setup for step 7 Inference mode
+        if mode == "Inference":
+            if not config.MODEL_PATH.exists():
+                self.write_log(f"[-] Error: LSTM Keras model missing at {config.MODEL_PATH}")
+                messagebox.showerror("Missing Model", f"Trained LSTM model not found at {config.MODEL_PATH}.\nRun Step 6 first.")
+                self.mode_selector.set("Idle")
+                self.change_mode("Idle")
+                return
+
+            try:
+                self.inf_gestures = get_gesture_names(config.GESTOS_DIR)
+            except Exception as e:
+                self.write_log(f"[-] Error listing gestures: {e}")
+                messagebox.showerror("Error", f"Failed to retrieve gesture classes: {e}")
+                self.mode_selector.set("Idle")
+                self.change_mode("Idle")
+                return
+
+            if self.lstm_model is None and not self.model_loading:
+                self.model_loading = True
+
+                def load_model_thread() -> None:
+                    try:
+                        self.write_log("[*] Loading LSTM Keras model (may take a few seconds)...")
+                        self.lstm_model = self.paso_07.cargar_modelo(config.MODEL_PATH)
+                        self.write_log(f"[+] Model loaded from {config.MODEL_PATH}")
+                        self.model_loading = False
+                    except Exception as err:
+                        self.write_log(f"[-] Error loading model: {err}")
+                        self.model_loading = False
+                        self.after(0, lambda: messagebox.showerror("Error", f"Failed to load Keras model: {err}"))
+                        self.after(0, lambda: self.mode_selector.set("Idle"))
+                        self.after(0, lambda: self.change_mode("Idle"))
+
+                threading.Thread(target=load_model_thread, daemon=True).start()
+        else:
+            self.inf_buffer.clear()
+            with self.prediction_lock:
+                self.inf_current_gesture = ""
+
     def start_step5_action(self) -> None:
         """Trigger start/stop of dataset recording (Step 5)."""
         if self.col_running:
+            # Stop collection
             self.col_running = False
             self.col_manager = None
             self.btn_collect.configure(text="Start Data Collection", fg_color="#2B8E5C", hover_color="#1D603E")
             self.mode_selector.configure(state="normal")
             self.write_log("[*] Data collection interrupted by user.")
         else:
+            # Start collection
             gesture_name = self.entry_gesture.get().strip().lower()
             if not gesture_name:
                 messagebox.showwarning("Input Required", "Please enter a class name to record.")
@@ -547,6 +695,7 @@ class GestureFlowApp(ctk.CTk):
             self.col_gesture_name = gesture_name
             self.write_log(f"[*] Verifying dataset directory index for '{gesture_name}'...")
 
+            # Count existing files to determine starting index
             output_dir = config.PROJECT_ROOT / "gestos" / gesture_name
             output_dir.mkdir(parents=True, exist_ok=True)
             existing_files = list(output_dir.glob("*.npy"))
@@ -587,8 +736,17 @@ class GestureFlowApp(ctk.CTk):
         messagebox.showinfo("Success", f"Recorded 200 sequences of '{self.col_gesture_name}' successfully!")
 
     def start_step6_action(self) -> None:
-        """Launch the step 6 model training script."""
-        pass
+        """Launch the step 6 model training script (Step 6)."""
+        script_path = Path("pasos") / "paso-06-entrenamiento" / "paso_06_entrenamiento.py"
+        if not script_path.exists():
+            messagebox.showerror("Error", f"Training script not found at {script_path}")
+            return
+
+        self.run_subprocess(
+            "Step 6: LSTM Training",
+            [sys.executable, str(script_path)],
+            self.btn_train
+        )
 
 
 def main() -> None:
