@@ -114,10 +114,14 @@ def main() -> None:
         current_gesture: str = ""
         current_confidence: float = 0.0
         prediction_in_progress: bool = False
+        last_print_time: float = 0.0
 
         def on_prediction_complete(gesture_index: int, confidence: float) -> None:
-            nonlocal current_gesture, current_confidence, prediction_in_progress
-            print(f"Pred: {gestures[gesture_index]} ({confidence:.4f})")
+            nonlocal current_gesture, current_confidence, prediction_in_progress, last_print_time
+            now = time.time()
+            if now - last_print_time >= 3.0:
+                print(f"Pred: {gestures[gesture_index]} ({confidence:.4f})")
+                last_print_time = now
             if confidence > CONFIDENCE_THRESHOLD:
                 current_gesture = gestures[gesture_index]
             else:
