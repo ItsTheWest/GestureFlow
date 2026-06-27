@@ -10,9 +10,13 @@ import queue
 import subprocess
 import sys
 import threading
+import time
 from typing import Any
 
+import cv2
 import customtkinter as ctk
+from PIL import Image, ImageTk
+import numpy as np
 
 
 class StepCard(ctk.CTkFrame):
@@ -84,6 +88,10 @@ class GestureFlowApp(ctk.CTk):
         self.current_mode: str = "Idle"
         self.active_processes: dict[str, subprocess.Popen] = {}
         self.log_queue: queue.Queue[str] = queue.Queue()
+
+        # Camera settings
+        self.cap: cv2.VideoCapture | None = None
+        self.camera_running: bool = False
 
         # Layout grids
         self.grid_columnconfigure(0, weight=1, minsize=350)  # Left controls
@@ -228,6 +236,35 @@ class GestureFlowApp(ctk.CTk):
         # Show initial Idle layout
         self.change_mode("Idle")
 
+        # ── RIGHT PANEL: Camera Viewport ────────────────────────────────────────
+        self.right_panel = ctk.CTkFrame(self, fg_color="#1A1A1A", corner_radius=0)
+        self.right_panel.grid(row=0, column=1, sticky="nsew", padx=0, pady=0)
+        self.right_panel.grid_rowconfigure(0, weight=1)
+        self.right_panel.grid_columnconfigure(0, weight=1)
+
+        # Camera viewport frame
+        self.viewport_container = ctk.CTkFrame(
+            self.right_panel,
+            fg_color="#0E0E0E",
+            corner_radius=12,
+            border_width=1,
+            border_color="#3B3B3B"
+        )
+        self.viewport_container.grid(row=0, column=0, padx=24, pady=24, sticky="nsew")
+        self.viewport_container.grid_rowconfigure(0, weight=1)
+        self.viewport_container.grid_columnconfigure(0, weight=1)
+
+        self.camera_viewport = ctk.CTkLabel(
+            self.viewport_container,
+            text="Loading Camera Feed...",
+            font=ctk.CTkFont(size=16),
+            text_color="#888888"
+        )
+        self.camera_viewport.grid(row=0, column=0, sticky="nsew")
+
+        # Start camera capturing and Tkinter after loop
+        self.start_camera()
+
         # Start log queue check
         self.after(100, self.check_log_queue)
 
@@ -249,6 +286,99 @@ class GestureFlowApp(ctk.CTk):
             except queue.Empty:
                 break
         self.after(100, self.check_log_queue)
+
+    def start_camera(self) -> None:
+        """Initialize the OpenCV capture stream."""
+        if not self.camera_running:
+            self.cap = cv2.VideoCapture(0)
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            self.camera_running = True
+            self.update_camera()
+
+    def stop_camera(self) -> None:
+        """Release the camera resources."""
+        self.camera_running = False
+        if self.cap:
+            self.cap.release()
+            self.cap = None
+
+    def draw_standby_frame(self) -> None:
+        """Draw a standby dark screen on the camera label viewport."""
+        standby_img = Image.new("RGB", (640, 480), color=(15, 15, 15))
+        img_tk = ImageTk.PhotoImage(image=standby_img)
+        self.camera_viewport.configure(image=img_tk)
+        self.camera_viewport.image = img_tk
+
+    def update_camera(self) -> None:
+        """Read and process frames from the camera in a loop."""
+        if not self.camera_running:
+            return
+
+        if not self.cap or not self.cap.isOpened():
+            self.draw_standby_frame()
+            self.after(33, self.update_camera)
+            return
+
+        ret, frame = self.cap.read()
+        if not ret:
+            self.draw_standby_frame()
+            self.after(33, self.update_camera)
+            return
+
+        # Mirror camera frame
+        frame = cv2.flip(frame, 1)
+
+        # Process frame based on current active mode
+        timestamp_ms = int(time.time() * 1000)
+        frame = self.process_viewport_frame(frame, timestamp_ms)
+
+        # Convert image formats for CustomTkinter label display
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        pil_image = Image.fromarray(rgb_frame)
+
+        # Fit image to the viewport frame width/height, maintaining aspect ratio
+        viewport_w = self.viewport_container.winfo_width()
+        viewport_h = self.viewport_container.winfo_height()
+
+        if viewport_w < 100 or viewport_h < 100:
+            viewport_w, viewport_h = 640, 480
+
+        scale = min(viewport_w / 640, viewport_h / 480)
+        new_w = int(640 * scale)
+        new_h = int(480 * scale)
+
+        if new_w > 0 and new_h > 0:
+            pil_image = pil_image.resize((new_w, new_h), Image.Resampling.LANCZOS)
+
+        img_tk = ImageTk.PhotoImage(image=pil_image)
+        self.camera_viewport.configure(image=img_tk, text="")
+        self.camera_viewport.image = img_tk
+
+        self.after(33, self.update_camera)
+
+    def process_viewport_frame(self, frame: np.ndarray, timestamp_ms: int) -> np.ndarray:
+        """Process the BGR camera frame based on the active dashboard mode.
+
+        Args:
+            frame: Raw camera frame in BGR format.
+            timestamp_ms: Current system milliseconds timestamp.
+
+        Returns:
+            np.ndarray: BGR frame with overlay renderings applied.
+        """
+        # Draw dynamic header indicating active mode in the viewport
+        cv2.putText(
+            frame,
+            f"MODE: {self.current_mode.upper()}",
+            (20, 40),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 255, 204),
+            2,
+            cv2.LINE_AA
+        )
+        return frame
 
     def run_subprocess(
         self,
@@ -320,7 +450,7 @@ def main() -> None:
     try:
         app.mainloop()
     finally:
-        pass
+        app.stop_camera()
 
 
 if __name__ == "__main__":
