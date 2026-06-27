@@ -13,24 +13,16 @@ from mediapipe.tasks.python import BaseOptions, vision
 import numpy as np
 
 # ── Local ──────────────────────────────────────────────────────────────────────
-from utils import extract_keypoints, get_gesture_names
+import config
+from utils import HAND_CONNECTIONS, extract_keypoints, get_gesture_names
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-MP_TASK_PATH         = PROJECT_ROOT / "assets" / "models" / "hand_landmarker.task"
-MODEL_PATH           = PROJECT_ROOT / "modelos" / "lstm_gestos.keras" 
-GESTOS_DIR           = PROJECT_ROOT / "gestos" 
+PROJECT_ROOT: Path = config.PROJECT_ROOT
+MP_TASK_PATH: Path = config.MP_TASK_PATH
+MODEL_PATH: Path = config.MODEL_PATH
+GESTOS_DIR: Path = config.GESTOS_DIR
 
-SEQUENCE_LENGTH      = 30 # number of frames to process
-CONFIDENCE_THRESHOLD = 0.8 # minimum confidence to display a prediction
-
-HAND_CONNECTIONS: frozenset[tuple[int, int]] = frozenset([
-    (0, 1), (1, 2), (2, 3), (3, 4),
-    (0, 5), (5, 6), (6, 7), (7, 8),
-    (0, 9), (9, 10), (10, 11), (11, 12),
-    (0, 13), (13, 14), (14, 15), (15, 16),
-    (0, 17), (17, 18), (18, 19), (19, 20),
-    (5, 9), (9, 13), (13, 17),
-])
+SEQUENCE_LENGTH: int = config.SEQUENCE_LENGTH
+CONFIDENCE_THRESHOLD: float = config.CONFIDENCE_THRESHOLD
 
 def cargar_modelo(model_path: Path):
     try:
@@ -78,14 +70,19 @@ def predecir_gesto_async(
     model,
     input_sequence: np.ndarray,
     gestures: list[str],
-    callback: Callable[[int, float], None]
+    callback: Callable[[int, float], None],
+    error_callback: Callable[[], None]
 ) -> None:
     """Runs the LSTM model prediction in a secondary thread asynchronously."""
-    input_data = np.expand_dims(input_sequence, axis=0)
-    prediction = model(input_data, training=False).numpy()[0]
-    gesture_index = int(np.argmax(prediction))
-    confidence = float(np.max(prediction))
-    callback(gesture_index, confidence)
+    try:
+        input_data = np.expand_dims(input_sequence, axis=0)
+        prediction = model(input_data, training=False).numpy()[0]
+        gesture_index = int(np.argmax(prediction))
+        confidence = float(np.max(prediction))
+        callback(gesture_index, confidence)
+    except Exception as e:
+        print(f"Error in prediction thread: {e}")
+        error_callback()
 
 
 def main() -> None:
@@ -115,6 +112,7 @@ def main() -> None:
         current_confidence: float = 0.0
         prediction_in_progress: bool = False
         last_print_time: float = 0.0
+        prediction_lock = threading.Lock()
 
         def on_prediction_complete(gesture_index: int, confidence: float) -> None:
             nonlocal current_gesture, current_confidence, prediction_in_progress, last_print_time
@@ -127,7 +125,13 @@ def main() -> None:
             else:
                 current_gesture = ""
             current_confidence = confidence
-            prediction_in_progress = False
+            with prediction_lock:
+                prediction_in_progress = False
+
+        def on_prediction_error() -> None:
+            nonlocal prediction_in_progress
+            with prediction_lock:
+                prediction_in_progress = False
         
         # --- Main capture loop ---
         while cap.isOpened():
@@ -155,13 +159,17 @@ def main() -> None:
             frame_count += 1
             
             # 12: Run prediction asynchronously when the sequence is complete
-            if len(sequence) == SEQUENCE_LENGTH and not prediction_in_progress:
-                prediction_in_progress = True
+            with prediction_lock:
+                can_predict = len(sequence) == SEQUENCE_LENGTH and not prediction_in_progress
+                if can_predict:
+                    prediction_in_progress = True
+            
+            if can_predict:
                 # Copy sequence to avoid race conditions across concurrent threads
                 sequence_snapshot = np.array(sequence, dtype=np.float32)
                 threading.Thread(
                     target=predecir_gesto_async,
-                    args=(model, sequence_snapshot, gestures, on_prediction_complete)
+                    args=(model, sequence_snapshot, gestures, on_prediction_complete, on_prediction_error)
                 ).start()
             
             # Show the last detected gesture or a warning if no hand is visible
