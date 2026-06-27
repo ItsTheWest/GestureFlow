@@ -6,6 +6,8 @@ The camera feed is embedded directly inside the GUI viewport, and its processing
 mode changes dynamically depending on the selected step.
 """
 
+from collections import deque
+import importlib
 import queue
 import subprocess
 import sys
@@ -15,8 +17,14 @@ from typing import Any
 
 import cv2
 import customtkinter as ctk
+import mediapipe as mp
+from mediapipe.tasks import python as mp_python
+from mediapipe.tasks.python import vision as mp_vision
 from PIL import Image, ImageTk
+from tkinter import messagebox
 import numpy as np
+
+import config
 
 
 class StepCard(ctk.CTkFrame):
@@ -75,6 +83,10 @@ class GestureFlowApp(ctk.CTk):
         """Initialize the dashboard layout, variables, and window settings."""
         super().__init__()
 
+        # Dynamic imports of step logic modules to prevent code duplication
+        self.paso_04: Any = importlib.import_module("pasos.paso-04-reconocimiento-vocales.paso_04_vocales")
+        self.paso_05: Any = importlib.import_module("pasos.paso-05-recoleccion.paso_05_recoleccion")
+
         # Window settings
         self.title("GestureFlow — Control Panel")
         self.geometry("1100x700")
@@ -89,9 +101,25 @@ class GestureFlowApp(ctk.CTk):
         self.active_processes: dict[str, subprocess.Popen] = {}
         self.log_queue: queue.Queue[str] = queue.Queue()
 
+        # MediaPipe instance
+        self.landmarker: mp_vision.HandLandmarker | None = None
+
         # Camera settings
         self.cap: cv2.VideoCapture | None = None
         self.camera_running: bool = False
+
+        # Step 4 State Variables (Vowels)
+        self.vowel_validator: Any = None
+
+        # Step 5 State Variables (Collection)
+        self.col_running: bool = False
+        self.col_gesture_name: str = ""
+        self.col_saved_sequences: int = 0
+        self.col_manager: Any = None
+        self.col_space_pressed: bool = False
+
+        # Bind space key for collection flow control
+        self.bind("<space>", self.on_space_pressed)
 
         # Layout grids
         self.grid_columnconfigure(0, weight=1, minsize=350)  # Left controls
@@ -288,7 +316,7 @@ class GestureFlowApp(ctk.CTk):
         self.after(100, self.check_log_queue)
 
     def start_camera(self) -> None:
-        """Initialize the OpenCV capture stream."""
+        """Initialize the OpenCV camera capture."""
         if not self.camera_running:
             self.cap = cv2.VideoCapture(0)
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
@@ -297,21 +325,21 @@ class GestureFlowApp(ctk.CTk):
             self.update_camera()
 
     def stop_camera(self) -> None:
-        """Release the camera resources."""
+        """Release camera resources."""
         self.camera_running = False
         if self.cap:
             self.cap.release()
             self.cap = None
 
     def draw_standby_frame(self) -> None:
-        """Draw a standby dark screen on the camera label viewport."""
+        """Draw standby screen frame."""
         standby_img = Image.new("RGB", (640, 480), color=(15, 15, 15))
         img_tk = ImageTk.PhotoImage(image=standby_img)
         self.camera_viewport.configure(image=img_tk)
         self.camera_viewport.image = img_tk
 
     def update_camera(self) -> None:
-        """Read and process frames from the camera in a loop."""
+        """Loop reading camera frames."""
         if not self.camera_running:
             return
 
@@ -326,18 +354,14 @@ class GestureFlowApp(ctk.CTk):
             self.after(33, self.update_camera)
             return
 
-        # Mirror camera frame
         frame = cv2.flip(frame, 1)
 
-        # Process frame based on current active mode
         timestamp_ms = int(time.time() * 1000)
         frame = self.process_viewport_frame(frame, timestamp_ms)
 
-        # Convert image formats for CustomTkinter label display
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         pil_image = Image.fromarray(rgb_frame)
 
-        # Fit image to the viewport frame width/height, maintaining aspect ratio
         viewport_w = self.viewport_container.winfo_width()
         viewport_h = self.viewport_container.winfo_height()
 
@@ -357,28 +381,14 @@ class GestureFlowApp(ctk.CTk):
 
         self.after(33, self.update_camera)
 
-    def process_viewport_frame(self, frame: np.ndarray, timestamp_ms: int) -> np.ndarray:
-        """Process the BGR camera frame based on the active dashboard mode.
+    def on_space_pressed(self, event: Any) -> None:
+        """Spacebar callback to drive step 5 data collection phases.
 
         Args:
-            frame: Raw camera frame in BGR format.
-            timestamp_ms: Current system milliseconds timestamp.
-
-        Returns:
-            np.ndarray: BGR frame with overlay renderings applied.
+            event: Event object containing key details.
         """
-        # Draw dynamic header indicating active mode in the viewport
-        cv2.putText(
-            frame,
-            f"MODE: {self.current_mode.upper()}",
-            (20, 40),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (0, 255, 204),
-            2,
-            cv2.LINE_AA
-        )
-        return frame
+        if self.current_mode == "Collection" and self.col_running:
+            self.col_space_pressed = True
 
     def run_subprocess(
         self,
@@ -427,17 +437,154 @@ class GestureFlowApp(ctk.CTk):
 
         threading.Thread(target=target_run, daemon=True).start()
 
+    def process_viewport_frame(self, frame: np.ndarray, timestamp_ms: int) -> np.ndarray:
+        """Process BGR frame and render active step overlays.
+
+        Args:
+            frame: Raw BGR camera image.
+            timestamp_ms: System milliseconds timestamp.
+
+        Returns:
+            np.ndarray: BGR frame with overlay drawings.
+        """
+        cv2.putText(
+            frame,
+            f"MODE: {self.current_mode.upper()}",
+            (20, 40),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 255, 204),
+            2,
+            cv2.LINE_AA
+        )
+
+        if self.current_mode == "Vowels" and self.landmarker and self.vowel_validator:
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
+            results = self.landmarker.detect_for_video(mp_image, timestamp_ms)
+
+            self.paso_04.dibujar_manos(frame, results)
+            self.vowel_validator.update(results)
+            self.vowel_validator.draw_status(frame)
+
+        elif self.current_mode == "Collection" and self.landmarker and self.col_running and self.col_manager:
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
+            results = self.landmarker.detect_for_video(mp_image, timestamp_ms)
+
+            space_pressed = self.col_space_pressed
+            self.col_space_pressed = False
+
+            frame = self.col_manager.process_frame(frame, results, timestamp_ms, space_pressed)
+
+            self.col_saved_sequences = self.col_manager.sequences_saved
+
+            if not self.col_manager.is_active:
+                self.stop_collection_successfully()
+
+        return frame
+
     def change_mode(self, mode: str) -> None:
-        """Switch the current active mode.
+        """Switch mode layout and MediaPipe life cycles.
 
         Args:
             mode: Target mode string identifier.
         """
-        pass
+        self.current_mode = mode
+        self.write_log(f"[*] Switched mode to: {mode}")
+
+        self.card_step4.pack_forget()
+        self.card_step5.pack_forget()
+        self.card_step6.pack_forget()
+        self.card_step7.pack_forget()
+
+        if mode == "Vowels":
+            self.card_step4.pack(fill="x", pady=10)
+            self.vowel_validator = self.paso_04.VowelValidator(confirmation_time=1.0)
+        elif mode == "Collection":
+            self.card_step5.pack(fill="x", pady=10)
+        elif mode == "Training":
+            self.card_step6.pack(fill="x", pady=10)
+        elif mode == "Inference":
+            self.card_step7.pack(fill="x", pady=10)
+
+        if mode in ["Vowels", "Collection", "Inference"]:
+            if self.landmarker is None:
+                if not config.MP_TASK_PATH.exists():
+                    self.write_log(f"[-] Error: HandLandmarker task missing at {config.MP_TASK_PATH}")
+                    messagebox.showerror("Error", f"MediaPipe model task not found at {config.MP_TASK_PATH}")
+                    self.mode_selector.set("Idle")
+                    self.change_mode("Idle")
+                    return
+
+                try:
+                    self.write_log("[*] Initializing MediaPipe HandLandmarker...")
+                    self.landmarker = self.paso_05.build_landmarker()
+                    self.write_log("[+] MediaPipe HandLandmarker loaded.")
+                except Exception as e:
+                    self.write_log(f"[-] Error initializing MediaPipe: {e}")
+                    messagebox.showerror("Error", f"Failed to initialize MediaPipe: {e}")
+        else:
+            if self.landmarker is not None:
+                self.landmarker.close()
+                self.landmarker = None
+                self.write_log("[*] MediaPipe HandLandmarker closed.")
 
     def start_step5_action(self) -> None:
-        """Trigger start/stop of dataset recording."""
-        pass
+        """Trigger start/stop of dataset recording (Step 5)."""
+        if self.col_running:
+            self.col_running = False
+            self.col_manager = None
+            self.btn_collect.configure(text="Start Data Collection", fg_color="#2B8E5C", hover_color="#1D603E")
+            self.mode_selector.configure(state="normal")
+            self.write_log("[*] Data collection interrupted by user.")
+        else:
+            gesture_name = self.entry_gesture.get().strip().lower()
+            if not gesture_name:
+                messagebox.showwarning("Input Required", "Please enter a class name to record.")
+                return
+
+            self.col_gesture_name = gesture_name
+            self.write_log(f"[*] Verifying dataset directory index for '{gesture_name}'...")
+
+            output_dir = config.PROJECT_ROOT / "gestos" / gesture_name
+            output_dir.mkdir(parents=True, exist_ok=True)
+            existing_files = list(output_dir.glob("*.npy"))
+
+            if existing_files:
+                indices = []
+                for f in existing_files:
+                    try:
+                        indices.append(int(f.stem))
+                    except ValueError:
+                        pass
+                self.col_saved_sequences = max(indices) + 1 if indices else 0
+            else:
+                self.col_saved_sequences = 0
+
+            if self.col_saved_sequences >= 200:
+                self.write_log(f"[!] Warning: Already collected {self.col_saved_sequences}/200 sequences.")
+                if messagebox.askyesno("Limit Reached", f"Already have {self.col_saved_sequences} sequences. Overwrite index 0?"):
+                    self.col_saved_sequences = 0
+                else:
+                    return
+
+            self.col_manager = self.paso_05.CollectionManager(self.col_gesture_name, self.col_saved_sequences)
+            self.col_running = True
+            self.col_space_pressed = False
+            self.btn_collect.configure(text="Stop Collection", fg_color="#903030", hover_color="#602020")
+            self.mode_selector.configure(state="disabled")
+            self.write_log(f"[+] Collection started at sequence index {self.col_saved_sequences}.")
+            self.write_log("[i] Press SPACEBAR inside the application to begin recording.")
+
+    def stop_collection_successfully(self) -> None:
+        """Callback to finalize collection settings when success threshold met."""
+        self.col_running = False
+        self.col_manager = None
+        self.btn_collect.configure(text="Start Data Collection", fg_color="#2B8E5C", hover_color="#1D603E")
+        self.mode_selector.configure(state="normal")
+        self.write_log("[+] Data collection completed successfully.")
+        messagebox.showinfo("Success", f"Recorded 200 sequences of '{self.col_gesture_name}' successfully!")
 
     def start_step6_action(self) -> None:
         """Launch the step 6 model training script."""
