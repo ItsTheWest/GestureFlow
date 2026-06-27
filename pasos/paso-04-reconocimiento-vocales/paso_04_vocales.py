@@ -15,6 +15,9 @@ from mediapipe.tasks.python.vision.hand_landmarker import HandLandmarksConnectio
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent.parent
+import sys
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 MODEL_PATH = PROJECT_ROOT / "assets" / "models" / "hand_landmarker.task"
 
 # Inference width (lower = less CPU lag). Landmarks are 0-1 and draw well on the full frame.
@@ -144,6 +147,13 @@ def get_vowel(hand_landmarks: list, hand_label: str) -> str | None:
     is_thumb_on_side = dist_pulgar_menique > dist_indice_menique
 
     # 4. Classification rules
+    # 'O': thumb-index and thumb-middle fingertips touch forming a circle
+    dist_thumb_index  = _distancia(lm[4], lm[8])
+    dist_thumb_middle = _distancia(lm[4], lm[12])
+    are_tips_touching = dist_thumb_index < 0.07 and dist_thumb_middle < 0.07
+    if are_tips_touching and is_ring_semi_closed and is_pinky_semi_closed:
+        return 'O'
+
     # 'A': all fingers closed, thumb lateral and pointing up
     if is_index_closed and is_middle_closed and is_ring_closed and is_pinky_closed and is_thumb_up and is_thumb_on_side:
         return 'A'
@@ -156,13 +166,6 @@ def get_vowel(hand_landmarks: list, hand_label: str) -> str | None:
     # 'U': index and middle open, ring and pinky closed, thumb inward
     if not is_index_closed and not is_middle_closed and is_ring_closed and is_pinky_closed and is_thumb_down:
         return 'U'
-
-    # 'O': thumb-index and thumb-middle fingertips touch forming a circle
-    dist_thumb_index  = _distancia(lm[4], lm[8])
-    dist_thumb_middle = _distancia(lm[4], lm[12])
-    are_tips_touching = dist_thumb_index < 0.07 and dist_thumb_middle < 0.07
-    if are_tips_touching and is_ring_semi_closed and is_pinky_semi_closed:
-        return 'O'
 class HandState(TypedDict):
     """Type definition for tracking a single hand's vowel validation state."""
     vocal_detectada: Optional[str]
