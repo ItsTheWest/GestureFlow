@@ -5,6 +5,16 @@ import numpy as np
 from mediapipe.tasks.python import vision
 
 
+HAND_CONNECTIONS: frozenset[tuple[int, int]] = frozenset([
+    (0, 1), (1, 2), (2, 3), (3, 4),
+    (0, 5), (5, 6), (6, 7), (7, 8),
+    (0, 9), (9, 10), (10, 11), (11, 12),
+    (0, 13), (13, 14), (14, 15), (15, 16),
+    (0, 17), (17, 18), (18, 19), (19, 20),
+    (5, 9), (9, 13), (13, 17),
+])
+
+
 def extract_keypoints(results: vision.HandLandmarkerResult) -> np.ndarray:
     """Extract exactly 126 coordinates (63 left + 63 right) from a detection result.
 
