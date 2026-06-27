@@ -312,3 +312,16 @@ class GestureFlowApp(ctk.CTk):
     def start_step6_action(self) -> None:
         """Launch the step 6 model training script."""
         pass
+
+
+def main() -> None:
+    """Instantiate and run the CustomTkinter dashboard application loop."""
+    app = GestureFlowApp()
+    try:
+        app.mainloop()
+    finally:
+        pass
+
+
+if __name__ == "__main__":
+    main()
