@@ -1,7 +1,11 @@
-import shutil
 from pathlib import Path
+import shutil
+
+import config
+
 
 def delete_bad_folders(base_path: Path, min_sequences: int = 1) -> None:
+    """Delete folders containing fewer than the minimum number of sequences."""
     if not base_path.exists(): # Check if the directory exists
         print(f"Error: Base directory '{base_path}' not found.")
         return
@@ -14,7 +18,7 @@ def delete_bad_folders(base_path: Path, min_sequences: int = 1) -> None:
                 shutil.rmtree(target_path) # Delete the folder with fewer than the minimum sequences
 
 if __name__ == "__main__":
-    gestos_dir = Path("gestos")
+    gestos_dir = config.GESTOS_DIR
     
     print("Starting automatic cleanup...") # Start the automatic cleanup
     # Delete folders with fewer than 1 sequence
