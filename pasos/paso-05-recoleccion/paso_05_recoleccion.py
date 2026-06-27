@@ -7,8 +7,15 @@ Exposes a CollectionManager class for easy integration into dashboards.
 
 from collections import deque
 from pathlib import Path
+import sys
 import time
 from typing import Any
+
+# Resolve project root and insert it into sys.path to find config/utils
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT_DIR = SCRIPT_DIR.parent.parent
+if str(PROJECT_ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT_DIR))
 
 import cv2
 import mediapipe as mp
