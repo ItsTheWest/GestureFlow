@@ -8,6 +8,8 @@ mode changes dynamically depending on the selected step.
 
 import queue
 import subprocess
+import sys
+import threading
 from typing import Any
 
 import customtkinter as ctk
@@ -225,6 +227,75 @@ class GestureFlowApp(ctk.CTk):
 
         # Show initial Idle layout
         self.change_mode("Idle")
+
+        # Start log queue check
+        self.after(100, self.check_log_queue)
+
+    def write_log(self, text: str) -> None:
+        """Helper to print a log line to the internal textbox.
+
+        Args:
+            text: Log content string.
+        """
+        self.textbox_logs.insert("end", text + "\n")
+        self.textbox_logs.see("end")
+
+    def check_log_queue(self) -> None:
+        """Drain the log queue and print all logs to the GUI console."""
+        while not self.log_queue.empty():
+            try:
+                line = self.log_queue.get_nowait()
+                self.write_log(line)
+            except queue.Empty:
+                break
+        self.after(100, self.check_log_queue)
+
+    def run_subprocess(
+        self,
+        task_name: str,
+        args: list[str],
+        button_to_disable: ctk.CTkButton
+    ) -> None:
+        """Run a script as an asynchronous subprocess.
+
+        Args:
+            task_name: Display name of the running step.
+            args: Complete CLI execution argument list.
+            button_to_disable: Reference to the trigger button to disable/enable.
+        """
+        if task_name in self.active_processes:
+            self.write_log(f"[!] Warning: {task_name} is already running.")
+            return
+
+        self.write_log(f"[*] Starting {task_name}...")
+        button_to_disable.configure(state="disabled")
+        self.mode_selector.configure(state="disabled")
+
+        def target_run() -> None:
+            try:
+                process = subprocess.Popen(
+                    args,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1
+                )
+                self.active_processes[task_name] = process
+
+                if process.stdout:
+                    for line in iter(process.stdout.readline, ""):
+                        self.log_queue.put(line.strip())
+
+                process.wait()
+                self.log_queue.put(f"[+] {task_name} finished (exit code {process.returncode}).")
+            except Exception as e:
+                self.log_queue.put(f"[-] Error executing {task_name}: {e}")
+            finally:
+                self.active_processes.pop(task_name, None)
+                self.after(10, lambda: button_to_disable.configure(state="normal"))
+                self.after(10, lambda: self.mode_selector.configure(state="normal"))
+
+        threading.Thread(target=target_run, daemon=True).start()
 
     def change_mode(self, mode: str) -> None:
         """Switch the current active mode.
