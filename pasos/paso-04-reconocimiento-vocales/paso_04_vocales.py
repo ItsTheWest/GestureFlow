@@ -2,6 +2,7 @@
 import math
 from pathlib import Path
 import time
+from typing import Optional, TypedDict
 
 import cv2
 import mediapipe as mp
@@ -162,116 +163,166 @@ def get_vowel(hand_landmarks: list, hand_label: str) -> str | None:
     are_tips_touching = dist_thumb_index < 0.07 and dist_thumb_middle < 0.07
     if are_tips_touching and is_ring_semi_closed and is_pinky_semi_closed:
         return 'O'
-if not MODEL_PATH.is_file():
-    raise FileNotFoundError(f"Model not found: {MODEL_PATH}")
+class HandState(TypedDict):
+    """Type definition for tracking a single hand's vowel validation state."""
+    vocal_detectada: Optional[str]
+    tiempo_inicio: float
+    confirmada: bool
 
-cap = cv2.VideoCapture(0)
-if not cap.isOpened():
-    print("Error: Could not open the camera")
-    exit(1)
 
-# Create the window with normal GUI to avoid the Qt toolbar
-cv2.namedWindow("Paso 03 - Tiempo real", cv2.WINDOW_GUI_NORMAL)
+class VowelValidator:
+    """Tracks and validates vowel gesture hold time for Left and Right hands."""
 
-# Fewer pixels from the camera = faster capture and conversion
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    def __init__(self, confirmation_time: float = 1.0) -> None:
+        """Initialize the hand vowel validator state.
 
-base_options = python.BaseOptions(model_asset_path=str(MODEL_PATH))
-options = vision.HandLandmarkerOptions(
-    base_options=base_options,
-    running_mode=vision.RunningMode.LIVE_STREAM,
-    num_hands=2,
-    result_callback=on_result,
-)
+        Args:
+            confirmation_time: Time in seconds a gesture must be held.
+        """
+        self.confirmation_time = confirmation_time
+        self.estado_manos: dict[str, HandState] = {
+            "Left": {
+                "vocal_detectada": None,
+                "tiempo_inicio": 0.0,
+                "confirmada": False
+            },
+            "Right": {
+                "vocal_detectada": None,
+                "tiempo_inicio": 0.0,
+                "confirmada": False
+            }
+        }
 
-inicio = time.perf_counter()
+    def update(self, results: vision.HandLandmarkerResult) -> None:
+        """Update the vowel classification validation timers.
 
-with vision.HandLandmarker.create_from_options(options) as landmarker:
-    print("Real-time detection | Q = quit")
-    print("(No frame queue: the most recent frame is processed when the model finishes)")
+        Args:
+            results: The hand landmarker inference results.
+        """
+        manos_presentes = set()
+        if results and results.hand_landmarks and results.handedness:
+            for idx, landmarks in enumerate(results.hand_landmarks):
+                hand_label = results.handedness[idx][0].category_name
+                manos_presentes.add(hand_label)
 
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            print("Error: Could not read the frame")
-            break
+                vocal = get_vowel(landmarks, hand_label)
 
-        frame = cv2.flip(frame, 1)
-        display = frame.copy()
-
-        if ultimo_resultado is not None:
-            dibujar_manos(display, ultimo_resultado)
-            
-            # Detect vowel per hand if hands are present
-            manos_presentes = set()
-            if ultimo_resultado.hand_landmarks and ultimo_resultado.handedness:
-                for idx, landmarks in enumerate(ultimo_resultado.hand_landmarks):
-                    hand_label = ultimo_resultado.handedness[idx][0].category_name
-                    manos_presentes.add(hand_label)
-                    
-                    vocal = get_vowel(landmarks, hand_label)
-                    
-                    if vocal:
-                        if vocal == estado_manos[hand_label]["vocal_detectada"]:
-                            # Vowel is held, check the elapsed time
-                            tiempo_transcurrido = time.time() - estado_manos[hand_label]["tiempo_inicio"]
-                            if tiempo_transcurrido >= TIEMPO_CONFIRMACION:
-                                estado_manos[hand_label]["confirmada"] = True
-                            else:
-                                estado_manos[hand_label]["confirmada"] = False
-                        else:
-                            # Vowel changed (or new), start counting
-                            estado_manos[hand_label]["vocal_detectada"] = vocal
-                            estado_manos[hand_label]["tiempo_inicio"] = time.time()
-                            estado_manos[hand_label]["confirmada"] = False
-                    else:
-                        estado_manos[hand_label]["vocal_detectada"] = None
-                        estado_manos[hand_label]["confirmada"] = False
-            
-            # Reset the state of hands that did not appear in the frame
-            for hand_label in ["Left", "Right"]:
-                if hand_label not in manos_presentes:
-                    estado_manos[hand_label]["vocal_detectada"] = None
-                    estado_manos[hand_label]["confirmada"] = False
-
-            # Draw the vowel state on screen
-            y_offset = 80
-            for hand_label in ["Left", "Right"]:
-                vocal = estado_manos[hand_label]["vocal_detectada"]
                 if vocal:
-                    lado = "Left" if hand_label == "Left" else "Right"
-                    if estado_manos[hand_label]["confirmada"]:
-                        texto = f"Mano {lado} - Confirmada: {vocal}"
-                        cv2.putText(display, texto, (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 3)
+                    if vocal == self.estado_manos[hand_label]["vocal_detectada"]:
+                        # Vowel is held, check the elapsed time
+                        elapsed = time.time() - self.estado_manos[hand_label]["tiempo_inicio"]
+                        if elapsed >= self.confirmation_time:
+                            self.estado_manos[hand_label]["confirmada"] = True
+                        else:
+                            self.estado_manos[hand_label]["confirmada"] = False
                     else:
-                        tiempo_transcurrido = time.time() - estado_manos[hand_label]["tiempo_inicio"]
-                        texto = f"Mano {lado} - Validando {vocal}... {tiempo_transcurrido:.1f}s"
-                        cv2.putText(display, texto, (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
-                    y_offset += 40
+                        # Vowel changed or new, start counting
+                        self.estado_manos[hand_label]["vocal_detectada"] = vocal
+                        self.estado_manos[hand_label]["tiempo_inicio"] = time.time()
+                        self.estado_manos[hand_label]["confirmada"] = False
+                else:
+                    self.estado_manos[hand_label]["vocal_detectada"] = None
+                    self.estado_manos[hand_label]["confirmada"] = False
 
-        cv2.putText(
-            display, "Tiempo real | Q: salir", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2
-        )
-        # Show the frame in the window
-        cv2.imshow("Paso 03 - Tiempo real", display)
+        # Reset the state of hands that did not appear in the frame
+        for hand_label in ["Left", "Right"]:
+            if hand_label not in manos_presentes:
+                self.estado_manos[hand_label]["vocal_detectada"] = None
+                self.estado_manos[hand_label]["confirmada"] = False
 
-        # Unified keyboard control (single waitKey call per loop)
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord("q"):
-            break
+    def draw_status(self, frame: np.ndarray) -> None:
+        """Draw the vowel verification status overlays onto the frame.
 
-        # Real timestamp (ms): LIVE_STREAM requires it to increase; avoids drift from a fixed frame_index
-        timestamp_ms = int((time.perf_counter() - inicio) * 1000)
+        Args:
+            frame: BGR frame to draw status text onto.
+        """
+        y_offset = 80
+        for hand_label in ["Left", "Right"]:
+            vocal = self.estado_manos[hand_label]["vocal_detectada"]
+            if vocal:
+                lado = "Left" if hand_label == "Left" else "Right"
+                if self.estado_manos[hand_label]["confirmada"]:
+                    texto = f"Mano {lado} - Confirmada: {vocal}"
+                    cv2.putText(frame, texto, (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 3)
+                else:
+                    elapsed = time.time() - self.estado_manos[hand_label]["tiempo_inicio"]
+                    texto = f"Mano {lado} - Validando {vocal}... {elapsed:.1f}s"
+                    cv2.putText(frame, texto, (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+                y_offset += 40
 
-        if listo_para_inferir:
-            listo_para_inferir = False
-            pequeno = frame_para_inferencia(frame)
-            mp_image = mp.Image(
-                image_format=mp.ImageFormat.SRGB,
-                data=cv2.cvtColor(pequeno, cv2.COLOR_BGR2RGB),
+
+def main() -> None:
+    """Run real-time threshold-based vowel recognition."""
+    global listo_para_inferir
+    listo_para_inferir = True
+
+    if not MODEL_PATH.is_file():
+        raise FileNotFoundError(f"Model not found: {MODEL_PATH}")
+
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("Error: Could not open the camera")
+        return
+
+    # Create the window with normal GUI to avoid the Qt toolbar
+    cv2.namedWindow("Paso 03 - Tiempo real", cv2.WINDOW_GUI_NORMAL)
+
+    # Fewer pixels from the camera = faster capture and conversion
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+    base_options = python.BaseOptions(model_asset_path=str(MODEL_PATH))
+    options = vision.HandLandmarkerOptions(
+        base_options=base_options,
+        running_mode=vision.RunningMode.LIVE_STREAM,
+        num_hands=2,
+        result_callback=on_result,
+    )
+
+    validator = VowelValidator(confirmation_time=TIEMPO_CONFIRMACION)
+    inicio = time.perf_counter()
+
+    with vision.HandLandmarker.create_from_options(options) as landmarker:
+        print("Real-time detection | Q = quit")
+        print("(No frame queue: the most recent frame is processed when the model finishes)")
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                print("Error: Could not read the frame")
+                break
+
+            frame = cv2.flip(frame, 1)
+            display = frame.copy()
+
+            if ultimo_resultado is not None:
+                dibujar_manos(display, ultimo_resultado)
+                validator.update(ultimo_resultado)
+                validator.draw_status(display)
+
+            cv2.putText(
+                display, "Tiempo real | Q: salir", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2
             )
-            landmarker.detect_async(mp_image, timestamp_ms)
+            cv2.imshow("Paso 03 - Tiempo real", display)
 
-    cap.release()
-    cv2.destroyAllWindows()
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord("q"):
+                break
+
+            timestamp_ms = int((time.perf_counter() - inicio) * 1000)
+
+            if listo_para_inferir:
+                listo_para_inferir = False
+                pequeno = frame_para_inferencia(frame)
+                mp_image = mp.Image(
+                    image_format=mp.ImageFormat.SRGB,
+                    data=cv2.cvtColor(pequeno, cv2.COLOR_BGR2RGB),
+                )
+                landmarker.detect_async(mp_image, timestamp_ms)
+
+        cap.release()
+        cv2.destroyAllWindows()
+
+
+if __name__ == "__main__":
+    main()
