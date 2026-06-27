@@ -1,91 +1,82 @@
-import tensorflow as tf
 from pathlib import Path
+
 import numpy as np
-
-from sklearn.model_selection import train_test_split #para dividir los datos en conjuntos de entrenamiento y prueba
-from keras.utils import to_categorical #para convertir los datos a one-hot encoding
-from keras.models import Sequential
-from keras.layers import LSTM, Dense, Dropout
-from keras.callbacks import EarlyStopping, ModelCheckpoint #para el monitoreo y control del entrenamiento
 from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
+import tensorflow as tf
+from tensorflow import config as tf_config
 
+from keras.callbacks import EarlyStopping, ModelCheckpoint
+from keras.layers import LSTM, Dense, Dropout, BatchNormalization
+from keras.models import Sequential
+from keras.regularizers import l2
+from keras.utils import to_categorical
 
-GESTOS_DIR = Path("gestos")
+import config
+from utils import get_gesture_names
 
-SEQUENCE_LENGTH = 30 #Se define la longitud de la secuencia
-
-NUM_FEATURES = 126 #Se define el numero de caracteristicas
-
-TEST_SIZE    = 0.20 #Se define el tamaño del conjunto de prueba
-RANDOM_STATE = 42 #Se define la semilla para la generacion de numeros aleatorios
-
-EPOCHS     = 100 #Numero de epochs (los epochs son las veces que el modelo se entrenara con los datos)
-BATCH_SIZE = 32 #Tamaño del batch (el batch es el numero de muestras que se procesaran al mismo tiempo)
-MODEL_PATH = Path("modelos/lstm_gestos.keras") #Ruta donde se guardara el modelo
+GESTOS_DIR: Path = config.GESTOS_DIR
+SEQUENCE_LENGTH: int = config.SEQUENCE_LENGTH
+NUM_FEATURES: int = config.NUM_FEATURES
+TEST_SIZE: float = config.TEST_SIZE
+RANDOM_STATE: int = config.RANDOM_STATE
+EPOCHS: int = config.EPOCHS
+BATCH_SIZE: int = config.BATCH_SIZE
+MODEL_PATH: Path = config.MODEL_PATH
 
 def verificar_entorno() -> None:
     """Print TF version and list available physical devices."""
     print(f"TensorFlow version: {tf.__version__}")
-    dispositivos = tf.config.list_physical_devices()
-    print(f"Dispositivos físicos encontrados: {dispositivos}")
+    dispositivos = tf_config.list_physical_devices()
+    print(f"Physical devices found: {dispositivos}")
 
 def cargar_dataset() -> tuple[np.ndarray, np.ndarray, list[str]]:
-    if not GESTOS_DIR.exists(): #Se evalua si la carpeta con gestos existe
-        raise FileNotFoundError(f"Gestos no encontrados:{GESTOS_DIR}")
-    subdirs = [] #definimos la lista de sub directorios 
+    gestos = get_gesture_names(GESTOS_DIR)  # validates existence and ≥ 2 classes
+    X, Y = [], []
 
-    for subdir in sorted(GESTOS_DIR.iterdir()):#recorremos ordenadamente los archivos 
-        if subdir.is_dir():  #si es un directorio
-            subdirs.append(subdir.name) #agregamos el nombre del directorio a la lista
-    if len(subdirs)<2:
-        raise ValueError("Deben haber al menos 2 gestos")
-
-    gestos = subdirs  # Las clases corresponden exactamente a los subdirectorios ordenados
-    X, Y = [], [] # Se definen las listas que almacenaran los datos
-
-    for i, gesto in enumerate(subdirs): # se recorre cada gesto en busqueda de los archivos npy
+    for i, gesto in enumerate(gestos):
         gesto_path = GESTOS_DIR / gesto
         for npy_file in gesto_path.glob("*.npy"):
-            secuencia = np.load(npy_file) # Se carga el archivo .npy
+            secuencia = np.load(npy_file) # Load the .npy file
             
-            # Ajustar longitud de la secuencia (frames)
+            # Adjust sequence length (frames)
             f_count = secuencia.shape[0]
             if f_count < SEQUENCE_LENGTH:
-                # Rellenar con ceros al final si faltan frames
+                # Pad with zeros at the end if frames are missing
                 padding = np.zeros((SEQUENCE_LENGTH - f_count, secuencia.shape[1]), dtype=np.float32)
                 secuencia = np.concatenate([secuencia, padding], axis=0)
             elif f_count > SEQUENCE_LENGTH:
-                # Recortar si tiene frames de mas
+                # Trim if there are too many frames
                 secuencia = secuencia[:SEQUENCE_LENGTH, :]
 
-            # Ajustar numero de caracteristicas (coordenadas)
+            # Adjust number of features (coordinates)
             feat_count = secuencia.shape[1]
             if feat_count < NUM_FEATURES:
-                # Rellenar con ceros si solo se detecto una mano (ej. 63 features a 126)
+                # Pad with zeros if only one hand was detected (e.g. 63 features to 126)
                 padding = np.zeros((secuencia.shape[0], NUM_FEATURES - feat_count), dtype=np.float32)
                 secuencia = np.concatenate([secuencia, padding], axis=1)
             elif feat_count > NUM_FEATURES:
-                # Recortar si excede las caracteristicas esperadas
+                # Trim if it exceeds the expected features
                 secuencia = secuencia[:, :NUM_FEATURES]
                 
-            X.append(secuencia) # Se agrega la secuencia a la lista X
-            Y.append(i) # Se agrega el indice del gesto a la lista Y
+            X.append(secuencia) # Append the sequence to the X list
+            Y.append(i) # Append the gesture index to the Y list
     
-    X = np.array(X, dtype=np.float32) # Convertimos la lista X a un array de numpy
-    Y = np.array(Y, dtype=np.int32) # Convertimos la lista Y a un array de numpy
+    X = np.array(X, dtype=np.float32) # Convert X list to a numpy array
+    Y = np.array(Y, dtype=np.int32) # Convert Y list to a numpy array
 
     # print(f"X:{X.shape}\nY:{Y.shape}")
 
-    return X, Y, gestos # Se retorna la lista X, la lista Y y la lista gestos
+    return X, Y, gestos # Return the X list, the Y list and the gestures list
 
 def procesar(X:np.ndarray, Y:np.ndarray, num_clases:int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     X_train, X_test, Y_train, Y_test = train_test_split(
     X, Y, 
-    test_size=TEST_SIZE,  # se reserva el 20% porciento de modelo para probar y el restante para el entrenamiento
+    test_size=TEST_SIZE,  # reserve 20% of the data for testing and the rest for training
     random_state=RANDOM_STATE, 
-    stratify=Y) # estratificación para asegurar que las proporciones de clases sean iguales en ambos conjuntos
+    stratify=Y) # stratification to ensure equal class proportions in both sets
 
-    Y_train_cat = to_categorical(Y_train, num_classes=num_clases) # representa los datos en formato one-hot encoding  legible para el modelo
+    Y_train_cat = to_categorical(Y_train, num_classes=num_clases) # represent data in one-hot encoding format readable by the model
     Y_test_cat  = to_categorical(Y_test, num_classes=num_clases) 
 
     print("X_train shape:", X_train.shape)
@@ -94,94 +85,98 @@ def procesar(X:np.ndarray, Y:np.ndarray, num_clases:int) -> tuple[np.ndarray, np
     print("Y_test_cat shape:", Y_test_cat.shape)
     return X_train, X_test, Y_train_cat, Y_test_cat
 
-def construir_modelo(input_shape: tuple[int, ...], num_classes: int) -> Sequential:
-    """Assemble, compile, and return the LSTM model architecture."""
-    model = Sequential() # Se inicializa el modelo secuencial de keras
+def construir_modelo_mejorado(input_shape: tuple[int, ...], num_classes: int) -> Sequential:
+    model = Sequential() # Initialize the Keras sequential model
     
-    # Primera capa LSTM: procesa la secuencia y devuelve secuencias para la siguiente capa LSTM
-    model.add(LSTM(64, return_sequences=True, input_shape=input_shape)) 
-    model.add(Dropout(0.2)) # Se agrega una capa dropout con una tasa de dropout del 20% 
+    # First LSTM layer: processes the sequence and returns sequences for the next LSTM layer
+    model.add(LSTM(128, return_sequences=True, input_shape=input_shape, 
+                   kernel_regularizer=l2(0.001))) # Add an LSTM layer with 128 neurons and L2 regularization
+    model.add(BatchNormalization()) # Add a batch normalization layer
+    model.add(Dropout(0.3)) # Add a dropout layer with a 30% dropout rate
     
-    # Segunda capa LSTM: resume la secuencia en un único vector de 64 dimensiones (return_sequences=False)
-    model.add(LSTM(64, return_sequences=False))
-    model.add(Dropout(0.2))
+    # Second LSTM layer: summarises the sequence into a single 64-dimensional vector (return_sequences=False)
+    model.add(LSTM(64, return_sequences=False, 
+                   kernel_regularizer=l2(0.001)))
+    model.add(BatchNormalization()) # Add a batch normalization layer
+    model.add(Dropout(0.3)) # Add a dropout layer with a 30% dropout rate
     
-    # Capas densas de clasificación
-    model.add(Dense(32, activation='relu')) # Capa intermedia oculta para refinar características
-    model.add(Dense(num_classes, activation='softmax')) # Capa de salida con activación softmax para las probabilidades de clase
+    # Dense classification layer
+    model.add(Dense(64, activation='relu', kernel_regularizer=l2(0.001))) # Intermediate hidden layer to refine features
+    model.add(BatchNormalization()) # Add a batch normalization layer
+    model.add(Dropout(0.3)) # Add a dropout layer with a 30% dropout rate
     
-    # Compilación del modelo en el que se define la funcion de perdida y el optimizador
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    # Output layer with softmax activation for class probabilities
+    model.add(Dense(num_classes, activation='softmax')) # Output layer with softmax activation for class probabilities
     
-    # Mostrar resumen del modelo en consola
-    model.summary()
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy']) # Compile the model defining the loss function and optimizer
     
+    model.summary() # Display a model summary in the console
     return model
 
 def entrenar_modelo(model: Sequential, X_train: np.ndarray, Y_train_cat: np.ndarray, X_test: np.ndarray, Y_test_cat: np.ndarray) -> None:
-   callback = [] # Se inicializa la lista de callbacks
-   callback.append(EarlyStopping(monitor="val_accuracy",patience=EPOCHS,restore_best_weights=True)) # Se agrega el callback de early stopping
+   callback = [] # Initialize the callbacks list
+   callback.append(EarlyStopping(monitor="val_accuracy", patience=15, restore_best_weights=True)) # Add the early stopping callback
    callback.append(ModelCheckpoint(
-    filepath=MODEL_PATH, # Se define la ruta donde se guardara el modelo
-    monitor='val_accuracy', # Se define la metrica a monitorear
-    verbose=1, # Se habilita el verbose (sirve para que se muestre informacion sobre el entrenamiento)
-    save_best_only=True, # Se guarda solo el mejor modelo
-    save_weights_only=False, # Se guardan los pesos del modelo
-    mode='auto', # Se define el modo de guardado (en este caso, auto, esto quiere decir que se guardara el modelo si la metrica monitoreada mejora)
-    save_freq='epoch' # Se define la frecuencia de guardado (en este caso, cada epoch osea cada pasada por los datos)
+    filepath=MODEL_PATH, # Define the path where the model will be saved
+    monitor='val_accuracy', # Define the metric to monitor
+    verbose=1, # Enable verbose (shows training information)
+    save_best_only=True, # Save only the best model
+    save_weights_only=False, # Save the full model (not just weights)
+    mode='auto', # Saving mode (auto means save when the monitored metric improves)
+    save_freq='epoch' # Save frequency (once per epoch, i.e. each pass through the data)
    )) 
    history = model.fit(
-    X_train, Y_train_cat, # Se define los datos de entrenamiento
-    validation_data=(X_test, Y_test_cat), # Se define los datos de prueba
-    epochs=EPOCHS, # Se define el numero de epochs
-    batch_size=BATCH_SIZE, # Se define el tamaño del batch
-    callbacks=callback, # Se define la lista de callbacks
-    verbose=2 # Se habilita el verbose (el dos nos ayuda a ver el entrenamiento con una barra de progreso)
+    X_train, Y_train_cat, # Define the training data
+    validation_data=(X_test, Y_test_cat), # Define the test data
+    epochs=EPOCHS, # Define the number of epochs
+    batch_size=BATCH_SIZE, # Define the batch size
+    callbacks=callback, # Define the callbacks list
+    verbose=2 # Enable verbose (level 2 shows training progress)
     )
 
 def evaluar(model: Sequential, X_test: np.ndarray, Y_test_cat: np.ndarray) -> None:
-   loss, accuracy = model.evaluate(X_test, Y_test_cat, verbose=0) # Se evalua el modelo en el conjunto de prueba
-   print(f"Loss: {loss:.4f}, Accuracy: {accuracy:.4f}") # Se muestra el loss y la accuracy
+   loss, accuracy = model.evaluate(X_test, Y_test_cat, verbose=0) # Evaluate the model on the test set
+   print(f"Loss: {loss:.4f}, Accuracy: {accuracy:.4f}") # Display loss and accuracy
    
 
 def evaluar_f1(model: Sequential, X_test: np.ndarray, Y_test_cat: np.ndarray, gestos: list[str]) -> None:
-    predictions=model.predict(X_test) # Se obtienen las predicciones del modelo
-    predicciones_clase = np.argmax(predictions, axis=1) # Se obtienen las predicciones en formato de clase
-    y_true = np.argmax(Y_test_cat, axis=1) # Se obtienen las etiquetas verdaderas en formato de clase
-    print(classification_report(y_true, predicciones_clase, target_names=gestos, labels=range(len(gestos)))) # Se muestra el reporte de clasificación
+    predictions=model.predict(X_test) # Get the model predictions
+    predicciones_clase = np.argmax(predictions, axis=1) # Get the predictions in class format
+    y_true = np.argmax(Y_test_cat, axis=1) # Get the true labels in class format
+    print(classification_report(y_true, predicciones_clase, target_names=gestos, labels=range(len(gestos)))) # Display the classification report
 
 def guardar_modelo(model: Sequential) -> None:
     """Serialize the model to disk."""
     model.save(str(MODEL_PATH))
-    print(f"Modelo guardado en: {MODEL_PATH}")
+    print(f"Model saved to: {MODEL_PATH}")
 
 def main() -> None:
     """Orchestrate the full training pipeline."""
     verificar_entorno()
 
     X, Y, gestos = cargar_dataset()
-    print("--- Dataset cargado ---")
+    print("--- Dataset loaded ---")
     
     num_classes = len(gestos)
     X_train, X_test, Y_train_cat, Y_test_cat = procesar(X, Y, num_classes)
-    print("--- Dataset procesado ---")
+    print("--- Dataset processed ---")
     
     input_shape = X_train.shape[1:]
-    print("--- Construyendo modelo ---")
-    model = construir_modelo(input_shape, num_classes)
-    print("\n--- Modelo construido ---\n")
+    print("--- Building model ---")
+    model = construir_modelo_mejorado(input_shape, num_classes)
+    print("\n--- Model built ---\n")
     
-    print("--- Entrenando modelo ---")
+    print("--- Training model ---")
     entrenar_modelo(model, X_train, Y_train_cat, X_test, Y_test_cat)
-    print("\n--- Modelo entrenado ---\n")
+    print("\n--- Model trained ---\n")
     
-    print("--- Evaluando modelo ---")
+    print("--- Evaluating model ---")
     evaluar(model, X_test, Y_test_cat)
-    print("\n--- Modelo evaluado ---\n")
+    print("\n--- Model evaluated ---\n")
     
-    print("--- Evaluando modelo F1 ---")
+    print("--- Evaluating model F1 ---")
     evaluar_f1(model, X_test, Y_test_cat, gestos)
-    print("--- Modelo evaluado F1 ---\n")
+    print("--- Model F1 evaluated ---\n")
 
     guardar_modelo(model)
 

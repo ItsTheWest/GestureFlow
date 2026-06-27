@@ -1,4 +1,4 @@
-# --- Librerías ---
+# --- Libraries ---
 import time
 
 import cv2
@@ -13,13 +13,13 @@ mp_hands = mp.tasks.vision.HandLandmarksConnections
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent.parent
-MODEL_PATH = PROJECT_ROOT / "prueba" / "hand_landmarker.task"
+MODEL_PATH = PROJECT_ROOT / "assets" / "models" / "hand_landmarker.task"
 
-# Ancho para inferencia (más bajo = menos retardo en CPU). Landmarks son 0-1, se dibujan bien en el frame completo.
+# Inference width (lower = less CPU lag). Landmarks are 0-1 and draw well on the full frame.
 ANCHO_INFERENCIA = 320
 
 ultimo_resultado = None
-listo_para_inferir = True  # Evita encolar frames: solo enviamos cuando el callback terminó
+listo_para_inferir = True  # Avoids frame queuing: we only send when the callback has finished
 
 
 def on_result(result: vision.HandLandmarkerResult, output_image: mp.Image, timestamp_ms: int):
@@ -44,7 +44,7 @@ def dibujar_manos(frame, results):
 
 
 def frame_para_inferencia(frame_bgr):
-    """Redimensiona solo para el modelo; coordenadas normalizadas siguen valiendo en el frame grande."""
+    """Downscales only for the model; normalized coordinates still apply to the full frame."""
     h, w = frame_bgr.shape[:2]
     if w <= ANCHO_INFERENCIA:
         return frame_bgr
@@ -54,17 +54,17 @@ def frame_para_inferencia(frame_bgr):
 
 
 if not MODEL_PATH.is_file():
-    raise FileNotFoundError(f"No se encontro el modelo: {MODEL_PATH}")
+    raise FileNotFoundError(f"Model not found: {MODEL_PATH}")
 
 cap = cv2.VideoCapture(0)
 if not cap.isOpened():
-    print("Error: No se pudo abrir la camara")
+    print("Error: Could not open the camera")
     exit(1)
 
-# Crear la ventana con GUI normal para evitar la barra de herramientas de Qt
+# Create the window with normal GUI to avoid the Qt toolbar
 cv2.namedWindow("Paso 03 - Tiempo real", cv2.WINDOW_GUI_NORMAL)
 
-# Menos píxeles desde la cámara = captura y conversión más rápidas
+# Fewer pixels from the camera = faster capture and conversion
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
@@ -79,13 +79,13 @@ options = vision.HandLandmarkerOptions(
 inicio = time.perf_counter()
 
 with vision.HandLandmarker.create_from_options(options) as landmarker:
-    print("Deteccion en tiempo real | Q = salir")
-    print("(Sin cola de frames: se procesa el frame mas reciente cuando el modelo termina)")
+    print("Real-time detection | Q = quit")
+    print("(No frame queue: the most recent frame is processed when the model finishes)")
 
     while True:
         ret, frame = cap.read()
         if not ret:
-            print("Error: No se pudo leer el frame")
+            print("Error: Could not read the frame")
             break
 
         frame = cv2.flip(frame, 1)
@@ -97,13 +97,13 @@ with vision.HandLandmarker.create_from_options(options) as landmarker:
         cv2.putText(
             display,"Tiempo real | Q: salir",(10, 30),cv2.FONT_HERSHEY_SIMPLEX,0.7,(0, 255, 0),2,
         )
-        # Mostrar el frame en la ventana
+        # Show the frame in the window
         cv2.imshow("Paso 03 - Tiempo real", display)
-        # Salir del bucle si se pulsa la tecla 'q'
+        # Exit the loop if 'q' is pressed
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
-        # Timestamp real (ms): LIVE_STREAM exige que suba; evita desfase por frame_index fijo
+        # Real timestamp (ms): LIVE_STREAM requires it to increase; avoids drift from a fixed frame_index
         timestamp_ms = int((time.perf_counter() - inicio) * 1000)
 
         if listo_para_inferir:
