@@ -1,36 +1,33 @@
 from pathlib import Path
 
 import numpy as np
+from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
 import tensorflow as tf
-from tensorflow import config
+from tensorflow import config as tf_config
 
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.layers import LSTM, Dense, Dropout, BatchNormalization
 from keras.models import Sequential
 from keras.regularizers import l2
 from keras.utils import to_categorical
-from sklearn.metrics import classification_report
-from sklearn.model_selection import train_test_split
 
+import config
 from utils import get_gesture_names
 
-GESTOS_DIR = Path("gestos")
-
-SEQUENCE_LENGTH = 30 #Defines the sequence length
-
-NUM_FEATURES = 126 #Defines the number of features
-
-TEST_SIZE    = 0.20 #Defines the size of the test set
-RANDOM_STATE = 42 #Defines the seed for random number generation
-
-EPOCHS     = 100 #Number of epochs (epochs are the number of times the model will be trained on the data)
-BATCH_SIZE = 32 #Batch size (the batch is the number of samples processed at the same time)
-MODEL_PATH = Path("modelos/lstm_gestos.keras") #Path where the model will be saved
+GESTOS_DIR: Path = config.GESTOS_DIR
+SEQUENCE_LENGTH: int = config.SEQUENCE_LENGTH
+NUM_FEATURES: int = config.NUM_FEATURES
+TEST_SIZE: float = config.TEST_SIZE
+RANDOM_STATE: int = config.RANDOM_STATE
+EPOCHS: int = config.EPOCHS
+BATCH_SIZE: int = config.BATCH_SIZE
+MODEL_PATH: Path = config.MODEL_PATH
 
 def verificar_entorno() -> None:
     """Print TF version and list available physical devices."""
     print(f"TensorFlow version: {tf.__version__}")
-    dispositivos = config.list_physical_devices()
+    dispositivos = tf_config.list_physical_devices()
     print(f"Physical devices found: {dispositivos}")
 
 def cargar_dataset() -> tuple[np.ndarray, np.ndarray, list[str]]:
