@@ -905,10 +905,10 @@ class GestureFlowApp(ctk.CTk):
         screen_w = self.winfo_screenwidth()
         screen_h = self.winfo_screenheight()
         pip_w, pip_h = 320, 240
-        # Margins from bottom right
-        margin_x, margin_y = 20, 60
+        # Margins from top right
+        margin_x, margin_y = 20, 20
         pos_x = screen_w - pip_w - margin_x
-        pos_y = screen_h - pip_h - margin_y
+        pos_y = margin_y
         
         # Hide left panel
         self.left_panel.grid_remove()
