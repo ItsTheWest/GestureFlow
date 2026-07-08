@@ -114,6 +114,8 @@ class GestureFlowApp(ctk.CTk):
 
         # Step 4 State Variables (Vowels)
         self.vowel_validator: Any = None
+        self.last_vowel_detected: dict[str, str | None] = {"Left": None, "Right": None}
+        self.last_vowel_confirmed: dict[str, bool] = {"Left": False, "Right": False}
 
         # Step 5 State Variables (Collection)
         self.col_running: bool = False
@@ -540,6 +542,26 @@ class GestureFlowApp(ctk.CTk):
             if results:
                 self.paso_04.dibujar_manos(frame, results)
                 self.vowel_validator.update(results)
+
+                # Log state changes
+                for side in ["Left", "Right"]:
+                    curr_v = self.vowel_validator.estado_manos[side]["vocal_detectada"]
+                    curr_c = self.vowel_validator.estado_manos[side]["confirmada"]
+
+                    prev_v = self.last_vowel_detected[side]
+                    prev_c = self.last_vowel_confirmed[side]
+
+                    if curr_v != prev_v:
+                        if curr_v is not None:
+                            self.write_log(f"[*] Vowels: {side} hand started validating '{curr_v}'...")
+                        elif prev_v is not None:
+                            self.write_log(f"[-] Vowels: {side} hand lost gesture.")
+                        self.last_vowel_detected[side] = curr_v
+
+                    if curr_c != prev_c:
+                        if curr_c:
+                            self.write_log(f"[+] Vowels: {side} hand CONFIRMED '{curr_v}'!")
+                        self.last_vowel_confirmed[side] = curr_c
             self.vowel_validator.draw_status(frame)
 
         elif self.current_mode == "Collection" and self.landmarker and self.col_running and self.col_manager:
@@ -630,6 +652,8 @@ class GestureFlowApp(ctk.CTk):
         if mode == "Vowels":
             self.card_step4.pack(fill="x", pady=10)
             self.vowel_validator = self.paso_04.VowelValidator(confirmation_time=1.0)
+            self.last_vowel_detected = {"Left": None, "Right": None}
+            self.last_vowel_confirmed = {"Left": False, "Right": False}
         elif mode == "Collection":
             self.card_step5.pack(fill="x", pady=10)
         elif mode == "Training":
