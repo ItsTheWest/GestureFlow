@@ -14,10 +14,62 @@ import time
 from typing import Any, Literal
 
 import pynput
-from pynput.mouse import Button, Controller as MouseController
 from pynput.keyboard import Key, Controller as KeyboardController
 
 import config
+
+class SystemMouseController(ABC):
+    @abstractmethod
+    def set_position(self, x: int, y: int) -> None: pass
+    
+    @abstractmethod
+    def click(self) -> None: pass
+
+class EvdevMouseController(SystemMouseController):
+    def __init__(self, screen_w: int, screen_h: int):
+        import evdev
+        from evdev import UInput, ecodes as e, AbsInfo
+        cap: dict[int, Any] = {
+            e.EV_ABS: [
+                (e.ABS_X, AbsInfo(value=0, min=0, max=screen_w, fuzz=0, flat=0, resolution=0)),
+                (e.ABS_Y, AbsInfo(value=0, min=0, max=screen_h, fuzz=0, flat=0, resolution=0))
+            ],
+            e.EV_KEY: [e.BTN_LEFT]
+        }
+        self.ui = UInput(cap, name="gestureflow-mouse", version=0x1)
+        self.e = e
+        
+    def set_position(self, x: int, y: int) -> None:
+        self.ui.write(self.e.EV_ABS, self.e.ABS_X, x)
+        self.ui.write(self.e.EV_ABS, self.e.ABS_Y, y)
+        self.ui.syn()
+        
+    def click(self) -> None:
+        self.ui.write(self.e.EV_KEY, self.e.BTN_LEFT, 1)
+        self.ui.syn()
+        self.ui.write(self.e.EV_KEY, self.e.BTN_LEFT, 0)
+        self.ui.syn()
+
+class PynputMouseController(SystemMouseController):
+    def __init__(self):
+        from pynput.mouse import Button, Controller
+        self.mouse = Controller()
+        self.Button = Button
+        
+    def set_position(self, x: int, y: int) -> None:
+        self.mouse.position = (x, y)
+        
+    def click(self) -> None:
+        self.mouse.click(self.Button.left)
+
+def build_mouse_controller(screen_w: int, screen_h: int) -> SystemMouseController:
+    if platform.system() == "Linux":
+        try:
+            return EvdevMouseController(screen_w, screen_h)
+        except Exception as e:
+            print(f"Evdev failed: {e}. Falling back to pynput.")
+    return PynputMouseController()
+
 
 @dataclass
 class ControlAction:
@@ -85,7 +137,7 @@ class GestureController:
         self.screen_w = screen_w
         self.screen_h = screen_h
         
-        self.mouse = MouseController()
+        self.mouse = build_mouse_controller(screen_w, screen_h)
         self.workspace_switcher = build_workspace_switcher()
         
         self.cursor_x: float | None = None
@@ -193,10 +245,10 @@ class GestureController:
     def execute_action(self, action: ControlAction) -> None:
         """Executes the given control action using system APIs."""
         if action.move:
-            self.mouse.position = action.move
+            self.mouse.set_position(action.move[0], action.move[1])
         
         if action.click:
-            self.mouse.click(Button.left)
+            self.mouse.click()
             
         if action.swipe:
             self.workspace_switcher.switch(action.swipe)

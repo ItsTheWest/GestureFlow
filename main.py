@@ -459,15 +459,18 @@ class GestureFlowApp(ctk.CTk):
         pil_image = Image.fromarray(rgb_frame)
 
         # Fit image to the viewport frame width/height, maintaining aspect ratio
-        viewport_w = self.viewport_container.winfo_width()
-        viewport_h = self.viewport_container.winfo_height()
+        if self.pip_mode:
+            new_w, new_h = 320, 240
+        else:
+            viewport_w = self.viewport_container.winfo_width()
+            viewport_h = self.viewport_container.winfo_height()
 
-        if viewport_w < 100 or viewport_h < 100:
-            viewport_w, viewport_h = 640, 480
+            if viewport_w < 100 or viewport_h < 100:
+                viewport_w, viewport_h = 640, 480
 
-        scale = min(viewport_w / 640, viewport_h / 480)
-        new_w = int(640 * scale)
-        new_h = int(480 * scale)
+            scale = min(viewport_w / 640, viewport_h / 480)
+            new_w = int(640 * scale)
+            new_h = int(480 * scale)
 
         if new_w > 0 and new_h > 0:
             pil_image = pil_image.resize((new_w, new_h), Image.Resampling.LANCZOS)
@@ -910,8 +913,10 @@ class GestureFlowApp(ctk.CTk):
         pos_x = screen_w - pip_w - margin_x
         pos_y = margin_y
         
-        # Hide left panel
+        # Hide left panel and remove padding for full camera view
         self.left_panel.grid_remove()
+        self.viewport_container.grid(padx=0, pady=0)
+        self.viewport_container.configure(corner_radius=0, border_width=0)
         
         self.minsize(320, 240)
         self.geometry(f"{pip_w}x{pip_h}+{pos_x}+{pos_y}")
@@ -928,6 +933,8 @@ class GestureFlowApp(ctk.CTk):
         self.pip_mode = False
         
         self.left_panel.grid()
+        self.viewport_container.grid(padx=24, pady=24)
+        self.viewport_container.configure(corner_radius=12, border_width=1)
         
         self.minsize(1000, 650)
         self.geometry("1100x700")
