@@ -569,10 +569,25 @@ class GestureFlowApp(ctk.CTk):
             space_pressed = self.col_space_pressed
             self.col_space_pressed = False
 
+            prev_state = self.col_manager.state
+            prev_saved = self.col_manager.sequences_saved
+
             frame = self.col_manager.process_frame(frame, results, int(time.time() * 1000), space_pressed, new_results)
 
             # Sync progress index back to local app parameters
             self.col_saved_sequences = self.col_manager.sequences_saved
+
+            if self.col_manager.state != prev_state:
+                self.write_log(f"[*] Collection: State changed from '{prev_state}' to '{self.col_manager.state}'")
+                if self.col_manager.state == "Paused":
+                    try:
+                        next_name, _, next_desc = self.paso_05.PHASES[self.col_manager.current_phase_idx]
+                        self.write_log(f"[i] Next Phase: {next_name} - {next_desc}")
+                    except Exception:
+                        pass
+
+            if self.col_manager.sequences_saved != prev_saved:
+                self.write_log(f"[+] Collection: Saved sequence {self.col_manager.sequences_saved}/{self.paso_05.NUM_SEQUENCES}")
 
             if not self.col_manager.is_active:
                 self.stop_collection_successfully()
