@@ -198,16 +198,15 @@ class GestureController:
                 
             action.move = (int(self.cursor_x), int(self.cursor_y))
             
-            # 3. Process Pinch to Click (on release)
+            # 3. Process Pinch to Click (on press)
             if current_pinching:
                 self.pinch_frames += 1
-                if self.pinch_frames >= config.PINCH_MIN_FRAMES:
+                if self.pinch_frames == config.PINCH_MIN_FRAMES and not self.is_pinched:
+                    # Pinched! Trigger click.
+                    action.click = True
                     self.is_pinched = True
             else:
-                if self.is_pinched:
-                    # Released! Trigger click.
-                    action.click = True
-                    self.is_pinched = False
+                self.is_pinched = False
                 self.pinch_frames = 0
         else:
             # Reset pinch state if not pointing
