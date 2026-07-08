@@ -23,3 +23,11 @@ BATCH_SIZE: int = 32
 
 # ── Inference Settings ─────────────────────────────────────────────────────────
 CONFIDENCE_THRESHOLD: float = 0.8
+
+# ── Step 8: System Gesture Control ────────────────────────────────────────────
+PINCH_THRESHOLD: float   = 0.06
+PINCH_MIN_FRAMES: int    = 3
+SWIPE_VELOCITY: float    = 0.035
+SWIPE_FRAMES: int        = 8
+SWIPE_COOLDOWN: float    = 1.5
+CURSOR_SMOOTHING: float  = 0.25
