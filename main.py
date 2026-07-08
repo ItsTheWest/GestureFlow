@@ -913,6 +913,7 @@ class GestureFlowApp(ctk.CTk):
         # Hide left panel
         self.left_panel.grid_remove()
         
+        self.minsize(320, 240)
         self.geometry(f"{pip_w}x{pip_h}+{pos_x}+{pos_y}")
         self.attributes("-topmost", True)
         
@@ -926,9 +927,9 @@ class GestureFlowApp(ctk.CTk):
             return
         self.pip_mode = False
         
-        # Restore left panel
         self.left_panel.grid()
         
+        self.minsize(1000, 650)
         self.geometry("1100x700")
         self.attributes("-topmost", False)
         
