@@ -74,7 +74,7 @@ def build_workspace_switcher() -> WorkspaceSwitcher:
     
     # Fallback to a dummy switcher if unsupported
     class DummySwitcher(WorkspaceSwitcher):
-        def switch(self, d: Literal["left", "right"]) -> None: pass
+        def switch(self, direction: Literal["left", "right"]) -> None: pass
     return DummySwitcher()
 
 
