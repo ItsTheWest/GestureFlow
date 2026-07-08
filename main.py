@@ -90,6 +90,7 @@ class GestureFlowApp(ctk.CTk):
         self.paso_04: Any = importlib.import_module("pasos.paso-04-reconocimiento-vocales.paso_04_vocales")
         self.paso_05: Any = importlib.import_module("pasos.paso-05-recoleccion.paso_05_recoleccion")
         self.paso_07: Any = importlib.import_module("pasos.paso-07-deteccion-tiempo-real.paso_07_deteccion")
+        self.paso_08: Any = importlib.import_module("pasos.paso-08-control-sistema.paso_08_control")
 
         # Window settings
         self.title("GestureFlow — Control Panel")
@@ -142,6 +143,10 @@ class GestureFlowApp(ctk.CTk):
         self.mp_processing: bool = False
         self.results_updated: bool = False
 
+        # Step 8 State Variables (System Control)
+        self.gesture_controller: Any = None
+        self.pip_mode: bool = False
+
         # Bind space key for collection flow control
         self.bind("<space>", self.on_space_pressed)
 
@@ -182,7 +187,7 @@ class GestureFlowApp(ctk.CTk):
 
         self.mode_selector = ctk.CTkSegmentedButton(
             self.left_panel,
-            values=["Idle", "Vowels", "Collection", "Training", "Inference"],
+            values=["Idle", "Vowels", "Collection", "Training", "Inference", "Control"],
             command=self.change_mode,
             selected_color="#1F538D"
         )
@@ -260,6 +265,34 @@ class GestureFlowApp(ctk.CTk):
             description="Run real-time neural network predictions inside the viewport to distinguish complex gestures."
         )
         self.card_step7.pack_forget()
+
+        # Step 8 Details Card
+        self.card_step8 = StepCard(
+            self.container_frame,
+            title="Step 8: System Control",
+            description="Control your OS: Point to move cursor, Pinch to click, Swipe left/right to change workspaces."
+        )
+        self.btn_pip_enable = ctk.CTkButton(
+            self.card_step8,
+            text="Enable PiP (Corner)",
+            font=ctk.CTkFont(weight="bold"),
+            fg_color="#2B8E5C",
+            hover_color="#1D603E",
+            command=self.enable_pip
+        )
+        self.btn_pip_enable.pack(fill="x", padx=16, pady=(0, 6))
+        
+        self.btn_pip_disable = ctk.CTkButton(
+            self.card_step8,
+            text="Restore Window",
+            font=ctk.CTkFont(weight="bold"),
+            fg_color="#8E2B2B",
+            hover_color="#601D1D",
+            command=self.disable_pip,
+            state="disabled"
+        )
+        self.btn_pip_disable.pack(fill="x", padx=16, pady=(0, 12))
+        self.card_step8.pack_forget()
 
         # Output Log Box
         self.console_frame = ctk.CTkFrame(
@@ -655,6 +688,34 @@ class GestureFlowApp(ctk.CTk):
         elif self.current_mode == "Training":
             cv2.putText(frame, "Training model in background...", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 1, cv2.LINE_AA)
 
+        elif self.current_mode == "Control" and self.landmarker and self.gesture_controller:
+            if results and results.hand_landmarks:
+                action = self.gesture_controller.process_landmarks(results)
+                
+                # Draw skeleton for feedback
+                if hasattr(self.paso_07, "dibujar_landmarks"):
+                    self.paso_07.dibujar_landmarks(frame, results)
+                
+                try:
+                    self.gesture_controller.execute_action(action)
+                except Exception as e:
+                    self.write_log(f"[-] Control Execution Error: {e}")
+                
+                # Optional: draw cursor dot if moving
+                if action.move:
+                    x, y = action.move
+                    # Since we don't have screen coordinates easily reversed to frame coordinates,
+                    # we just display an active status
+                    cv2.putText(frame, "Controlling Mouse", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2, cv2.LINE_AA)
+                
+                if action.click:
+                    cv2.putText(frame, "CLICK!", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2, cv2.LINE_AA)
+                    
+                if action.swipe:
+                    cv2.putText(frame, f"SWIPE {action.swipe.upper()}", (20, 120), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 0, 255), 2, cv2.LINE_AA)
+            else:
+                cv2.putText(frame, "No hand detected (Idle)", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 1, cv2.LINE_AA)
+
         return frame
 
     def change_mode(self, mode: str) -> None:
@@ -671,6 +732,11 @@ class GestureFlowApp(ctk.CTk):
         self.card_step5.pack_forget()
         self.card_step6.pack_forget()
         self.card_step7.pack_forget()
+        self.card_step8.pack_forget()
+
+        # Disable PIP if we are leaving control mode
+        if mode != "Control" and self.pip_mode:
+            self.disable_pip()
 
         # Show selected mode details card
         if mode == "Vowels":
@@ -684,9 +750,17 @@ class GestureFlowApp(ctk.CTk):
             self.card_step6.pack(fill="x", pady=10)
         elif mode == "Inference":
             self.card_step7.pack(fill="x", pady=10)
+        elif mode == "Control":
+            self.card_step8.pack(fill="x", pady=10)
+            if self.gesture_controller is None:
+                # Initialize lazily to ensure tkinter winfo methods are ready
+                screen_w = self.winfo_screenwidth()
+                screen_h = self.winfo_screenheight()
+                self.gesture_controller = self.paso_08.GestureController(screen_w, screen_h)
+                self.write_log(f"[*] Initialized System Control (Screen: {screen_w}x{screen_h})")
 
         # Allocate/release MediaPipe HandLandmarker based on active mode
-        if mode in ["Vowels", "Collection", "Inference"]:
+        if mode in ["Vowels", "Collection", "Inference", "Control"]:
             if self.landmarker is None:
                 if not config.MP_TASK_PATH.exists():
                     self.write_log(f"[-] Error: HandLandmarker task missing at {config.MP_TASK_PATH}")
@@ -820,6 +894,48 @@ class GestureFlowApp(ctk.CTk):
             [sys.executable, str(script_path)],
             self.btn_train
         )
+
+    def enable_pip(self) -> None:
+        """Switch application to Picture-in-Picture overlay mode."""
+        if self.pip_mode:
+            return
+        self.pip_mode = True
+        
+        # Configure to small corner window, keeping it on top
+        screen_w = self.winfo_screenwidth()
+        screen_h = self.winfo_screenheight()
+        pip_w, pip_h = 320, 240
+        # Margins from bottom right
+        margin_x, margin_y = 20, 60
+        pos_x = screen_w - pip_w - margin_x
+        pos_y = screen_h - pip_h - margin_y
+        
+        # Hide left panel
+        self.left_panel.grid_remove()
+        
+        self.geometry(f"{pip_w}x{pip_h}+{pos_x}+{pos_y}")
+        self.attributes("-topmost", True)
+        
+        self.btn_pip_enable.configure(state="disabled")
+        self.btn_pip_disable.configure(state="normal")
+        self.write_log("[*] PiP mode enabled.")
+
+    def disable_pip(self) -> None:
+        """Restore full application window from PiP mode."""
+        if not self.pip_mode:
+            return
+        self.pip_mode = False
+        
+        # Restore left panel
+        self.left_panel.grid()
+        
+        self.geometry("1100x700")
+        self.attributes("-topmost", False)
+        
+        self.btn_pip_enable.configure(state="normal")
+        self.btn_pip_disable.configure(state="disabled")
+        self.write_log("[*] PiP mode disabled, window restored.")
+
 
 
 def main() -> None:
