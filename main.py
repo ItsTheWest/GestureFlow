@@ -134,6 +134,7 @@ class GestureFlowApp(ctk.CTk):
         self.inf_current_confidence: float = 0.0
         self.inf_last_print_time: float = 0.0
         self.prediction_lock: threading.Lock = threading.Lock()
+        self.last_predicted_gesture: str = ""
 
         # MediaPipe Async State Variables
         self.latest_results: Any = None
@@ -510,16 +511,21 @@ class GestureFlowApp(ctk.CTk):
         with self.prediction_lock:
             self.inf_prediction_in_progress = False
 
-        now = time.time()
-        if now - self.inf_last_print_time >= 3.0:
-            self.write_log(f"[+] Pred: {self.inf_gestures[gesture_index]} ({confidence:.4f})")
-            self.inf_last_print_time = now
+        gesture_name = self.inf_gestures[gesture_index]
 
         if confidence > config.CONFIDENCE_THRESHOLD:
-            self.inf_current_gesture = self.inf_gestures[gesture_index]
+            self.inf_current_gesture = gesture_name
         else:
             self.inf_current_gesture = ""
         self.inf_current_confidence = confidence
+
+        # Log change in gesture state immediately (without timer throttling)
+        if self.inf_current_gesture != self.last_predicted_gesture:
+            if self.inf_current_gesture:
+                self.write_log(f"[+] Inference: Detected '{self.inf_current_gesture}' ({confidence * 100:.2f}% confidence)")
+            else:
+                self.write_log("[-] Inference: Active gesture lost.")
+            self.last_predicted_gesture = self.inf_current_gesture
 
     def on_prediction_error(self) -> None:
         """Reset prediction lock state on background thread error."""
@@ -607,6 +613,9 @@ class GestureFlowApp(ctk.CTk):
                         if not hand_detected:
                             with self.prediction_lock:
                                 self.inf_current_gesture = ""
+                                if self.last_predicted_gesture:
+                                    self.write_log("[-] Inference: Hand lost.")
+                                    self.last_predicted_gesture = ""
                             self.inf_buffer.clear()
                         else:
                             keypoints = extract_keypoints(results)
@@ -738,6 +747,7 @@ class GestureFlowApp(ctk.CTk):
             self.inf_buffer.clear()
             with self.prediction_lock:
                 self.inf_current_gesture = ""
+                self.last_predicted_gesture = ""
 
     def start_step5_action(self) -> None:
         """Trigger start/stop of dataset recording (Step 5)."""
