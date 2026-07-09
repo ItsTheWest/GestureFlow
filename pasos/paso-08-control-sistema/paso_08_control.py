@@ -142,6 +142,8 @@ class GestureController:
         
         self.cursor_x: float | None = None
         self.cursor_y: float | None = None
+        self.last_hand_x: float | None = None
+        self.last_hand_y: float | None = None
         
         self.pinch_frames = 0
         self.is_pinched = False
@@ -184,24 +186,44 @@ class GestureController:
         
         # 2. Process Pointing & Mouse Movement
         if is_pointing:
-            # Map index tip (8) to screen coordinates (1:1 full screen)
-            target_x = hand[8].x * self.screen_w
-            target_y = hand[8].y * self.screen_h
+            current_hand_x = hand[8].x
+            current_hand_y = hand[8].y
             
-            # Apply EMA smoothing
-            if self.cursor_x is None or self.cursor_y is None:
-                self.cursor_x, self.cursor_y = target_x, target_y
+            if self.last_hand_x is None or self.last_hand_y is None or self.cursor_x is None or self.cursor_y is None:
+                # Initialize cursor at the center of the screen on first point
+                self.cursor_x = self.screen_w / 2
+                self.cursor_y = self.screen_h / 2
             else:
+                # Calculate delta in normalized coordinates
+                delta_x = current_hand_x - self.last_hand_x
+                delta_y = current_hand_y - self.last_hand_y
+                
+                # Convert delta to screen pixels and apply sensitivity
+                move_x = delta_x * self.screen_w * config.MOUSE_SENSITIVITY
+                move_y = delta_y * self.screen_h * config.MOUSE_SENSITIVITY
+                
+                # Target cursor position
+                target_x = self.cursor_x + move_x
+                target_y = self.cursor_y + move_y
+                
+                # Clamp to screen bounds
+                target_x = max(0, min(self.screen_w, target_x))
+                target_y = max(0, min(self.screen_h, target_y))
+                
+                # Apply EMA smoothing
                 alpha = config.CURSOR_SMOOTHING
                 self.cursor_x = alpha * target_x + (1 - alpha) * self.cursor_x
                 self.cursor_y = alpha * target_y + (1 - alpha) * self.cursor_y
                 
+            self.last_hand_x = current_hand_x
+            self.last_hand_y = current_hand_y
+            
             action.move = (int(self.cursor_x), int(self.cursor_y))
             
             # 3. Process Pinch to Click (on press)
             if current_pinching:
                 self.pinch_frames += 1
-                if self.pinch_frames == config.PINCH_MIN_FRAMES and not self.is_pinched:
+                if self.pinch_frames >= config.PINCH_MIN_FRAMES and not self.is_pinched:
                     # Pinched! Trigger click.
                     action.click = True
                     self.is_pinched = True
@@ -212,8 +234,9 @@ class GestureController:
             # Reset pinch state if not pointing
             self.pinch_frames = 0
             self.is_pinched = False
-            self.cursor_x = None
-            self.cursor_y = None
+            self.last_hand_x = None
+            self.last_hand_y = None
+            # Do NOT reset cursor_x/y so it stays where it was left
 
         # 4. Process Swipe (Open Hand)
         if is_open_hand:
