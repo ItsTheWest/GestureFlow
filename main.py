@@ -145,7 +145,6 @@ class GestureFlowApp(ctk.CTk):
 
         # Step 8 State Variables (System Control)
         self.gesture_controller: Any = None
-        self.pip_mode: bool = False
 
         # Bind space key for collection flow control
         self.bind("<space>", self.on_space_pressed)
@@ -270,28 +269,8 @@ class GestureFlowApp(ctk.CTk):
         self.card_step8 = StepCard(
             self.container_frame,
             title="Step 8: System Control",
-            description="Control your OS: Point to move cursor, Pinch to click, Swipe left/right to change workspaces."
+            description="Control your OS: Two fingers to move cursor, Pinch to click, Swipe left/right to change workspaces."
         )
-        self.btn_pip_enable = ctk.CTkButton(
-            self.card_step8,
-            text="Enable PiP (Corner)",
-            font=ctk.CTkFont(weight="bold"),
-            fg_color="#2B8E5C",
-            hover_color="#1D603E",
-            command=self.enable_pip
-        )
-        self.btn_pip_enable.pack(fill="x", padx=16, pady=(0, 6))
-        
-        self.btn_pip_disable = ctk.CTkButton(
-            self.card_step8,
-            text="Restore Window",
-            font=ctk.CTkFont(weight="bold"),
-            fg_color="#8E2B2B",
-            hover_color="#601D1D",
-            command=self.disable_pip,
-            state="disabled"
-        )
-        self.btn_pip_disable.pack(fill="x", padx=16, pady=(0, 12))
         self.card_step8.pack_forget()
 
         # Output Log Box
@@ -459,18 +438,15 @@ class GestureFlowApp(ctk.CTk):
         pil_image = Image.fromarray(rgb_frame)
 
         # Fit image to the viewport frame width/height, maintaining aspect ratio
-        if self.pip_mode:
-            new_w, new_h = 320, 240
-        else:
-            viewport_w = self.viewport_container.winfo_width()
-            viewport_h = self.viewport_container.winfo_height()
+        viewport_w = self.viewport_container.winfo_width()
+        viewport_h = self.viewport_container.winfo_height()
 
-            if viewport_w < 100 or viewport_h < 100:
-                viewport_w, viewport_h = 640, 480
+        if viewport_w < 100 or viewport_h < 100:
+            viewport_w, viewport_h = 640, 480
 
-            scale = min(viewport_w / 640, viewport_h / 480)
-            new_w = int(640 * scale)
-            new_h = int(480 * scale)
+        scale = min(viewport_w / 640, viewport_h / 480)
+        new_w = int(640 * scale)
+        new_h = int(480 * scale)
 
         if new_w > 0 and new_h > 0:
             pil_image = pil_image.resize((new_w, new_h), Image.Resampling.LANCZOS)
@@ -737,9 +713,6 @@ class GestureFlowApp(ctk.CTk):
         self.card_step7.pack_forget()
         self.card_step8.pack_forget()
 
-        # Disable PIP if we are leaving control mode
-        if mode != "Control" and self.pip_mode:
-            self.disable_pip()
 
         # Show selected mode details card
         if mode == "Vowels":
@@ -897,53 +870,6 @@ class GestureFlowApp(ctk.CTk):
             [sys.executable, str(script_path)],
             self.btn_train
         )
-
-    def enable_pip(self) -> None:
-        """Switch application to Picture-in-Picture overlay mode."""
-        if self.pip_mode:
-            return
-        self.pip_mode = True
-        
-        # Configure to small corner window, keeping it on top
-        screen_w = self.winfo_screenwidth()
-        screen_h = self.winfo_screenheight()
-        pip_w, pip_h = 320, 240
-        # Margins from top right
-        margin_x, margin_y = 20, 20
-        pos_x = screen_w - pip_w - margin_x
-        pos_y = margin_y
-        
-        # Hide left panel and remove padding for full camera view
-        self.left_panel.grid_remove()
-        self.viewport_container.grid(padx=0, pady=0)
-        self.viewport_container.configure(corner_radius=0, border_width=0)
-        
-        self.minsize(320, 240)
-        self.geometry(f"{pip_w}x{pip_h}+{pos_x}+{pos_y}")
-        self.attributes("-topmost", True)
-        
-        self.btn_pip_enable.configure(state="disabled")
-        self.btn_pip_disable.configure(state="normal")
-        self.write_log("[*] PiP mode enabled.")
-
-    def disable_pip(self) -> None:
-        """Restore full application window from PiP mode."""
-        if not self.pip_mode:
-            return
-        self.pip_mode = False
-        
-        self.left_panel.grid()
-        self.viewport_container.grid(padx=24, pady=24)
-        self.viewport_container.configure(corner_radius=12, border_width=1)
-        
-        self.minsize(1000, 650)
-        self.geometry("1100x700")
-        self.attributes("-topmost", False)
-        
-        self.btn_pip_enable.configure(state="normal")
-        self.btn_pip_disable.configure(state="disabled")
-        self.write_log("[*] PiP mode disabled, window restored.")
-
 
 
 def main() -> None:
