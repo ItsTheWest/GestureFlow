@@ -168,10 +168,10 @@ class GestureController:
         is_ring_closed   = hand[16].y > hand[14].y
         is_pinky_closed  = hand[20].y > hand[18].y
         
-        # Pointing: only index is open (y is flipped in image coords)
-        is_pointing = (not is_index_closed and 
-                       is_middle_closed and 
-                       is_ring_closed and 
+        # Two fingers: index and middle open, ring and pinky closed
+        is_pointing = (not is_index_closed and
+                       not is_middle_closed and
+                       is_ring_closed and
                        is_pinky_closed)
         
         # Open hand: all fingers are open
@@ -184,10 +184,11 @@ class GestureController:
         dist_pinch = math.sqrt((hand[4].x - hand[8].x)**2 + (hand[4].y - hand[8].y)**2)
         current_pinching = dist_pinch < config.PINCH_THRESHOLD
         
-        # 2. Process Pointing & Mouse Movement
+        # 2. Process Two-Finger Mouse Movement
         if is_pointing:
-            current_hand_x = hand[8].x
-            current_hand_y = hand[8].y
+            # Track midpoint between index (8) and middle (12) tips
+            current_hand_x = (hand[8].x + hand[12].x) / 2
+            current_hand_y = (hand[8].y + hand[12].y) / 2
             
             if self.last_hand_x is None or self.last_hand_y is None or self.cursor_x is None or self.cursor_y is None:
                 # Initialize cursor at the center of the screen on first point
