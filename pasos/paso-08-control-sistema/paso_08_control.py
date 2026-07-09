@@ -190,10 +190,14 @@ class GestureController:
             current_hand_x = (hand[8].x + hand[12].x) / 2
             current_hand_y = (hand[8].y + hand[12].y) / 2
             
-            if self.last_hand_x is None or self.last_hand_y is None or self.cursor_x is None or self.cursor_y is None:
-                # Initialize cursor at the center of the screen on first point
+            if self.cursor_x is None or self.cursor_y is None:
+                # First time ever — place cursor at the center of screen
                 self.cursor_x = self.screen_w / 2
                 self.cursor_y = self.screen_h / 2
+
+            if self.last_hand_x is None or self.last_hand_y is None:
+                # Gesture was re-detected: anchor current hand position without moving cursor
+                pass
             else:
                 # Calculate delta in normalized coordinates
                 delta_x = current_hand_x - self.last_hand_x
