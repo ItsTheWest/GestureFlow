@@ -279,3 +279,90 @@ Key parameters (from `config.py`):
 | `SWIPE_VELOCITY` | 0.035 | Minimum wrist velocity for swipe |
 | `CURSOR_SMOOTHING` | 0.4 | EMA factor for pointer smoothing |
 | `MOUSE_SENSITIVITY` | 6.0 | Cursor speed multiplier |
+
+---
+
+## 🛠️ Installation
+
+### Prerequisites
+
+| Requirement | Version |
+|---|---|
+| Python | 3.10 or higher |
+| pip | Latest |
+| Git | Any |
+| Webcam | USB or built-in |
+| OS | Linux (Wayland/X11) — Step 8 uses `evdev` |
+
+> ⚠️ **Wayland note**: Step 8 system control uses `evdev` for mouse and keyboard events. On X11 sessions, `pynput` is used as fallback. Make sure your user belongs to the `input` group: `sudo usermod -aG input $USER`.
+
+---
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/<your-user>/GestureFlow.git
+cd GestureFlow
+```
+
+---
+
+### 2. Create and activate the virtual environment
+
+```bash
+python -m venv venv
+source venv/bin/activate   # Windows: venv\Scripts\activate
+```
+
+---
+
+### 3. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+> **Note**: `mediapipe==0.10.35` installs `opencv-contrib-python` as a dependency. Do **not** add `opencv-python` separately — it will create a conflicting double-install that breaks `import cv2`.
+
+---
+
+### 4. Download the MediaPipe hand landmark model
+
+The `.task` binary is not tracked in this repository due to its size (~25 MB). Download it manually:
+
+```bash
+mkdir -p assets/models
+curl -L \
+  "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task" \
+  -o assets/models/hand_landmarker.task
+```
+
+Or download directly from [MediaPipe Models](https://developers.google.com/mediapipe/solutions/vision/hand_landmarker#models) and place the file at `assets/models/hand_landmarker.task`.
+
+---
+
+### 5. Verify the installation
+
+```bash
+python -c "import mediapipe, cv2, tensorflow; print('All dependencies OK')"
+```
+
+Expected output:
+```
+All dependencies OK
+```
+
+---
+
+### Quick-start summary
+
+```bash
+git clone https://github.com/<your-user>/GestureFlow.git
+cd GestureFlow
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+mkdir -p assets/models
+curl -L "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task" \
+     -o assets/models/hand_landmarker.task
+python main.py
+```
