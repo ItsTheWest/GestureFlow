@@ -257,6 +257,9 @@ Translates gesture output into OS actions. Uses `pynput` on all platforms and `e
 
 > **Windows note**: The code automatically detects the OS at runtime (`platform.system()`). On Windows, `evdev` is never imported — mouse control uses `pynput` directly, and workspace switching uses `Ctrl+Win+Arrow`. All Steps 1–7 work identically across platforms. The only difference is in Step 8 system control behavior described below.
 
+> **Linux — workspace switching**: This feature is implemented via `hyprctl dispatch workspace` and only works on **Hyprland**. On other compositors (GNOME, KDE, i3, Sway, etc.) the swipe gesture is silently ignored — no error is thrown, but no workspace switch happens. Mouse control and all other gestures are unaffected.
+
+
 ---
 
 ### Prerequisites
