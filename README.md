@@ -366,3 +366,79 @@ curl -L "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_la
      -o assets/models/hand_landmarker.task
 python main.py
 ```
+
+---
+
+## 🚀 Running the Dashboard
+
+The unified dashboard (`main.py`) is the primary entry point for Steps 4–8.
+
+```bash
+source venv/bin/activate
+python main.py
+```
+
+The GUI will open at **1100×700** (minimum 1000×650) with:
+
+- **Left panel**: Mode selector, step-specific controls, and action log console
+- **Right panel**: Embedded live webcam viewport
+
+### Mode workflow
+
+```
+Idle → [Select "Collection"] → Enter gesture name → Press Start → SPACE to record
+     → [Select "Training"]   → Click "Train Model (LSTM)"
+     → [Select "Inference"]  → Live LSTM predictions appear on the camera feed
+     → [Select "Control"]    → Hand gestures control your mouse and workspaces
+```
+
+> **⚠️ Training** runs the Step 6 script as a **subprocess** — the GUI stays responsive but logs the training output to the console panel. Do not close the app while training.
+
+---
+
+## ⚙️ Configuration
+
+All tunable parameters are centralized in [`config.py`](config.py). No magic numbers in the step scripts.
+
+| Section | Constant | Default | Description |
+|---|---|---|---|
+| **Paths** | `MP_TASK_PATH` | `assets/models/hand_landmarker.task` | MediaPipe model binary |
+| **Paths** | `MODEL_PATH` | `modelos/lstm_gestos.keras` | Trained LSTM model |
+| **Paths** | `GESTOS_DIR` | `gestos/` | Root of gesture dataset |
+| **Collection** | `SEQUENCE_LENGTH` | 30 | Frames per gesture sequence |
+| **Collection** | `NUM_FEATURES` | 126 | Keypoints per frame (21 × 3 × 2 hands) |
+| **Collection** | `NUM_SEQUENCES` | 200 | Sequences collected per class |
+| **Collection** | `SAVE_EVERY` | 5 | Sliding window step (overlap) |
+| **Collection** | `COUNTDOWN_SECS` | 5 | Countdown before each recording |
+| **Training** | `TEST_SIZE` | 0.20 | Fraction for validation split |
+| **Training** | `EPOCHS` | 100 | Max training epochs |
+| **Training** | `BATCH_SIZE` | 32 | Samples per gradient update |
+| **Inference** | `CONFIDENCE_THRESHOLD` | 0.80 | Minimum confidence to accept prediction |
+| **Control** | `PINCH_THRESHOLD` | 0.06 | Normalized distance for click trigger |
+| **Control** | `SWIPE_VELOCITY` | 0.035 | Min wrist velocity for swipe detection |
+| **Control** | `CURSOR_SMOOTHING` | 0.4 | EMA alpha for pointer smoothing |
+| **Control** | `MOUSE_SENSITIVITY` | 6.0 | Cursor speed multiplier |
+
+---
+
+## 🧰 Tech Stack
+
+| Library | Version | Role |
+|---|---|---|
+| [MediaPipe](https://developers.google.com/mediapipe) | 0.10.35 | Hand landmark detection (21 pts per hand) |
+| [TensorFlow / Keras](https://tensorflow.org) | 2.16.1 | LSTM model definition, training, and inference |
+| [OpenCV](https://opencv.org) | via mediapipe | Camera capture, frame processing, overlay drawing |
+| [NumPy](https://numpy.org) | 1.26.4 | Keypoint arrays, sequence tensors, one-hot encoding |
+| [scikit-learn](https://scikit-learn.org) | 1.9.0 | Train/test split, label encoding utilities |
+| [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter) | Latest | Premium dark-themed desktop GUI |
+| [Pillow](https://python-pillow.org) | Latest | Converting OpenCV frames to Tkinter-compatible format |
+| [pynput](https://pynput.readthedocs.io) | ≥ 1.7.7 | Cross-platform mouse and keyboard control |
+| [evdev](https://python-evdev.readthedocs.io) | Latest | Low-level Linux input device control (Wayland) |
+
+---
+
+<div align="center">
+
+Made with ❤️ as a learning project — from raw webcam frames to OS gesture control.
+
+</div>
