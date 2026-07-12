@@ -172,3 +172,110 @@ The dashboard (`main.py`) exposes a **segmented button** to switch between pipel
 | **Training** | Off | — | Runs Step 6 script as subprocess |
 | **Inference** | On (VIDEO) | On | Predicts gesture label on live feed |
 | **Control** | On (VIDEO) | On | Translates gestures to OS events |
+
+---
+
+## 🪜 Pipeline Steps
+
+Each step lives in its own folder under `pasos/` and is self-contained. Steps 1–3 are exploratory scripts run directly; Steps 4–8 are orchestrated by the dashboard.
+
+### Step 1 — Raw Camera Capture
+**File**: `pasos/paso-01-camara/paso_01_camara.py`
+
+Opens the webcam with `cv2.VideoCapture(0)`, mirrors the feed horizontally (`cv2.flip`), and displays it in a named OpenCV window. The foundational loop used by all subsequent steps.
+
+---
+
+### Step 2 — Hand Landmark Drawing
+**File**: `pasos/paso-02-dibujo/paso_02_dibujo.py`
+
+Loads the MediaPipe `HandLandmarker` model (`.task` binary, `IMAGE` mode). For each frame, it converts BGR→RGB, runs synchronous detection, and draws the 21-point skeleton using `mp.solutions.drawing_utils` on top of the live feed.
+
+---
+
+### Step 3 — Real-time Landmark Visualization
+**File**: `pasos/paso-03-tiempo-real/paso_03_tiempo_real.py`
+
+Switches MediaPipe to `LIVE_STREAM` mode (asynchronous callback) and adds a readiness flag to prevent frame queue buildup on slower hardware. Introduces landmark inference at a reduced frame width for performance.
+
+---
+
+### Step 4 — Vowel Recognition (Rule-based)
+**File**: `pasos/paso-04-reconocimiento-vocales/paso_04_vocales.py`
+
+Detects the five Spanish vowels (A, E, I, O, U) using **geometric threshold rules** on landmark angles and distances — no machine learning. Includes a `VowelValidator` class with a configurable confirmation time (default 1 second) before confirming a detected vowel.
+
+> 💡 This step demonstrates why rule-based systems are brittle and motivates the LSTM approach.
+
+---
+
+### Step 5 — Dataset Collection
+**File**: `pasos/paso-05-recoleccion/paso_05_recoleccion.py`
+
+Runs a phased collection loop controlled by **spacebar**:
+
+| Phase | Description |
+|---|---|
+| **Waiting** | Idle until spacebar pressed |
+| **Countdown** | 5-second timer before recording begins |
+| **Recording** | Captures 30 frames → saves as `.npy` to `gestos/<name>/` |
+| **Paused** | Brief rest between sequences |
+
+Collects **200 sequences × 30 frames** per gesture class. Uses sliding-window overlap (`SAVE_EVERY=5`) as a data augmentation technique.
+
+**Output shape per file**: `(30, 126)` — 30 timesteps × 126 wrist-relative coordinates.
+
+---
+
+### Step 6 — LSTM Model Training
+**File**: `pasos/paso-06-entrenamiento/`
+
+Loads all `.npy` files from `gestos/`, builds a 3D tensor `(N, 30, 126)`, one-hot encodes the labels, and trains a TensorFlow/Keras LSTM network:
+
+```
+Input  → LSTM(64, return_sequences=True)
+       → LSTM(128, return_sequences=True)
+       → LSTM(64)
+       → Dense(64, relu)
+       → Dense(num_classes, softmax)
+```
+
+**Hyperparameters** (from `config.py`):
+
+| Parameter | Value |
+|---|---|
+| `EPOCHS` | 100 |
+| `BATCH_SIZE` | 32 |
+| `TEST_SIZE` | 20% |
+| `RANDOM_STATE` | 42 |
+
+Saves the trained model to `modelos/lstm_gestos.keras`.
+
+---
+
+### Step 7 — Real-time LSTM Inference
+**File**: `pasos/paso-07-deteccion-tiempo-real/paso_07_deteccion.py`
+
+Maintains a rolling `deque` buffer of 30 keypoint frames. When full, runs `model.predict()` on a background thread to avoid blocking the camera loop. A prediction is accepted only when confidence >= `CONFIDENCE_THRESHOLD` (0.80).
+
+---
+
+### Step 8 — System Gesture Control
+**File**: `pasos/paso-08-control-sistema/paso_08_control.py`
+
+Translates recognized gestures into OS-level events via `pynput` (cross-platform) and `evdev` (Linux Wayland):
+
+| Gesture | Action |
+|---|---|
+| **Two-finger pose** | Move mouse cursor (relative, smoothed) |
+| **Pinch** (thumb + index) | Left click |
+| **Swipe left / right** | Switch virtual workspace |
+
+Key parameters (from `config.py`):
+
+| Constant | Value | Description |
+|---|---|---|
+| `PINCH_THRESHOLD` | 0.06 | Normalized distance to trigger click |
+| `SWIPE_VELOCITY` | 0.035 | Minimum wrist velocity for swipe |
+| `CURSOR_SMOOTHING` | 0.4 | EMA factor for pointer smoothing |
+| `MOUSE_SENSITIVITY` | 6.0 | Cursor speed multiplier |
