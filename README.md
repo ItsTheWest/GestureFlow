@@ -93,3 +93,82 @@ GestureFlow/
 | `utils.py` | `extract_keypoints()` and `get_gesture_names()` used across steps |
 | `modelos/lstm_gestos.keras` | Output of Step 6; must exist before running Step 7 or Control |
 | `assets/models/hand_landmarker.task` | Required by MediaPipe — download separately (see Installation) |
+
+---
+
+## 🔄 Workflow
+
+The project follows two independent workflows: a **development path** (building the model) and a **runtime path** (using it).
+
+### Full Pipeline Diagram
+
+```mermaid
+flowchart TD
+    A["🎥 Webcam\n(cv2.VideoCapture)"]
+
+    subgraph EXPLORE ["📚 Exploration — Steps 1–3"]
+        B["Step 1: Raw Camera\npaso_01_camara.py"]
+        C["Step 2: Landmark Drawing\npaso_02_dibujo.py"]
+        D["Step 3: Real-time View\npaso_03_tiempo_real.py"]
+    end
+
+    subgraph RULEBASE ["📐 Rule-based — Step 4"]
+        E["Step 4: Vowel Recognition\nMathematical angle thresholds\n(no neural network)"]
+    end
+
+    subgraph TRAINING ["🧠 ML Pipeline — Steps 5–6"]
+        F["Step 5: Data Collection\n200 sequences × 30 frames\nper gesture class → .npy"]
+        G["Step 6: LSTM Training\nTensorFlow / Keras\n→ lstm_gestos.keras"]
+    end
+
+    subgraph INFERENCE ["⚡ Inference — Steps 7–8"]
+        H["Step 7: Real-time Detection\nLSTM predictions\non live camera feed"]
+        I["Step 8: System Control\nCursor · Click · Workspace"]
+    end
+
+    J["🖥️ Dashboard\nmain.py — GestureFlowApp"]
+
+    A --> EXPLORE
+    A --> RULEBASE
+    A --> TRAINING
+    F --> G
+    G --> H
+    H --> I
+    J -->|"Mode: Vowels"| E
+    J -->|"Mode: Collection"| F
+    J -->|"Mode: Training"| G
+    J -->|"Mode: Inference"| H
+    J -->|"Mode: Control"| I
+```
+
+### Data Flow
+
+```mermaid
+sequenceDiagram
+    participant CAM as Webcam
+    participant MP  as MediaPipe HandLandmarker
+    participant EXT as extract_keypoints()
+    participant BUF as Sequence Buffer (30 frames)
+    participant LSTM as LSTM Model
+    participant OS  as OS (evdev / pynput)
+
+    CAM->>MP: BGR frame (640×480)
+    MP->>EXT: hand_landmarks (21 pts × 2 hands)
+    EXT->>BUF: np.ndarray (126,) — wrist-relative coords
+    BUF->>LSTM: np.ndarray (30, 126) when buffer full
+    LSTM->>OS: gesture label + confidence > 0.80
+    OS-->>CAM: next frame (actions dispatched)
+```
+
+### Mode Switching
+
+The dashboard (`main.py`) exposes a **segmented button** to switch between pipeline modes at runtime:
+
+| Mode | MediaPipe | LSTM | Action |
+|---|---|---|---|
+| **Idle** | Off | — | Standby — no processing |
+| **Vowels** | On (VIDEO) | — | Rule-based vowel overlay |
+| **Collection** | On (VIDEO) | — | Records `.npy` sequences to `gestos/` |
+| **Training** | Off | — | Runs Step 6 script as subprocess |
+| **Inference** | On (VIDEO) | On | Predicts gesture label on live feed |
+| **Control** | On (VIDEO) | On | Translates gestures to OS events |
