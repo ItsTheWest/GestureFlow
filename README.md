@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🖐️ GestureFlow
+# GestureFlow
 
-**Real-time hand gesture recognition pipeline for Linux desktop control**
+**Real-time hand gesture recognition pipeline for desktop control**
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python\&logoColor=white)](https://www.python.org/)
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.16-orange?logo=tensorflow\&logoColor=white)](https://tensorflow.org/)
@@ -16,20 +16,20 @@
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 
-- [Overview](#-overview)
-- [Project Structure](#-project-structure)
-- [Workflow](#-workflow)
-- [Pipeline Steps](#-pipeline-steps)
-- [Installation](#-installation)
-- [Running the Dashboard](#-running-the-dashboard)
-- [Configuration](#-configuration)
-- [Tech Stack](#-tech-stack)
+- [Overview](#overview)
+- [Project Structure](#project-structure)
+- [Workflow](#workflow)
+- [Pipeline Steps](#pipeline-steps)
+- [Installation](#installation)
+- [Running the Dashboard](#running-the-dashboard)
+- [Configuration](#configuration)
+- [Tech Stack](#tech-stack)
 
 ---
 
-## 🧠 Overview
+## Overview
 
 GestureFlow is a structured learning project that walks through the full Machine Learning lifecycle applied to computer vision:
 
@@ -46,7 +46,7 @@ The final result is a unified **CustomTkinter dashboard** (`main.py`) that integ
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```text
 GestureFlow/
@@ -84,6 +84,8 @@ GestureFlow/
     └── paso-08-control-sistema/    # Step 8: OS gesture control (cursor, click, swipe)
 ```
 
+> Each step folder contains its own documentation file (`paso_0X_doc.md`) with detailed implementation notes, concept explanations, and common errors. The file `pasos/REFERENCIA_COMUN.md` documents all shared concepts (OpenCV, MediaPipe, LSTM) used across steps.
+
 ### Key files at a glance
 
 | File | Purpose |
@@ -96,7 +98,7 @@ GestureFlow/
 
 ---
 
-## 🔄 Workflow
+## Workflow
 
 The project follows two independent workflows: a **development path** (building the model) and a **runtime path** (using it).
 
@@ -104,29 +106,29 @@ The project follows two independent workflows: a **development path** (building 
 
 ```mermaid
 flowchart TD
-    A["🎥 Webcam\n(cv2.VideoCapture)"]
+    A["Webcam\n(cv2.VideoCapture)"]
 
-    subgraph EXPLORE ["📚 Exploration — Steps 1–3"]
+    subgraph EXPLORE ["Exploration — Steps 1–3"]
         B["Step 1: Raw Camera\npaso_01_camara.py"]
         C["Step 2: Landmark Drawing\npaso_02_dibujo.py"]
         D["Step 3: Real-time View\npaso_03_tiempo_real.py"]
     end
 
-    subgraph RULEBASE ["📐 Rule-based — Step 4"]
+    subgraph RULEBASE ["Rule-based — Step 4"]
         E["Step 4: Vowel Recognition\nMathematical angle thresholds\n(no neural network)"]
     end
 
-    subgraph TRAINING ["🧠 ML Pipeline — Steps 5–6"]
+    subgraph TRAINING ["ML Pipeline — Steps 5–6"]
         F["Step 5: Data Collection\n200 sequences × 30 frames\nper gesture class → .npy"]
         G["Step 6: LSTM Training\nTensorFlow / Keras\n→ lstm_gestos.keras"]
     end
 
-    subgraph INFERENCE ["⚡ Inference — Steps 7–8"]
+    subgraph INFERENCE ["Inference — Steps 7–8"]
         H["Step 7: Real-time Detection\nLSTM predictions\non live camera feed"]
         I["Step 8: System Control\nCursor · Click · Workspace"]
     end
 
-    J["🖥️ Dashboard\nmain.py — GestureFlowApp"]
+    J["Dashboard\nmain.py — GestureFlowApp"]
 
     A --> EXPLORE
     A --> RULEBASE
@@ -150,7 +152,7 @@ sequenceDiagram
     participant EXT as extract_keypoints()
     participant BUF as Sequence Buffer (30 frames)
     participant LSTM as LSTM Model
-    participant OS  as OS (evdev / pynput)
+    participant OS  as OS (pynput / evdev)
 
     CAM->>MP: BGR frame (640×480)
     MP->>EXT: hand_landmarks (21 pts × 2 hands)
@@ -175,114 +177,87 @@ The dashboard (`main.py`) exposes a **segmented button** to switch between pipel
 
 ---
 
-## 🪜 Pipeline Steps
+## Pipeline Steps
 
-Each step lives in its own folder under `pasos/` and is self-contained. Steps 1–3 are exploratory scripts run directly; Steps 4–8 are orchestrated by the dashboard.
+Each step is self-contained and has its own documentation inside its folder. The descriptions below are intentional summaries — read the per-step `*_doc.md` for full implementation details.
 
 ### Step 1 — Raw Camera Capture
 **File**: `pasos/paso-01-camara/paso_01_camara.py`
 
-Opens the webcam with `cv2.VideoCapture(0)`, mirrors the feed horizontally (`cv2.flip`), and displays it in a named OpenCV window. The foundational loop used by all subsequent steps.
+Foundational webcam loop using `cv2.VideoCapture`. Establishes the read-flip-display pattern that all subsequent steps build on.
 
 ---
 
 ### Step 2 — Hand Landmark Drawing
 **File**: `pasos/paso-02-dibujo/paso_02_dibujo.py`
 
-Loads the MediaPipe `HandLandmarker` model (`.task` binary, `IMAGE` mode). For each frame, it converts BGR→RGB, runs synchronous detection, and draws the 21-point skeleton using `mp.solutions.drawing_utils` on top of the live feed.
+Introduces MediaPipe `HandLandmarker` in synchronous `IMAGE` mode. Draws the 21-point hand skeleton over each frame.
 
 ---
 
 ### Step 3 — Real-time Landmark Visualization
 **File**: `pasos/paso-03-tiempo-real/paso_03_tiempo_real.py`
 
-Switches MediaPipe to `LIVE_STREAM` mode (asynchronous callback) and adds a readiness flag to prevent frame queue buildup on slower hardware. Introduces landmark inference at a reduced frame width for performance.
+Upgrades to `LIVE_STREAM` async mode with a readiness flag to prevent frame queue buildup. Optimizes inference by resizing frames before detection.
 
 ---
 
 ### Step 4 — Vowel Recognition (Rule-based)
 **File**: `pasos/paso-04-reconocimiento-vocales/paso_04_vocales.py`
 
-Detects the five Spanish vowels (A, E, I, O, U) using **geometric threshold rules** on landmark angles and distances — no machine learning. Includes a `VowelValidator` class with a configurable confirmation time (default 1 second) before confirming a detected vowel.
-
-> 💡 This step demonstrates why rule-based systems are brittle and motivates the LSTM approach.
+Classifies the five Spanish vowels using geometric rules on landmark angles — no model required. Demonstrates the limitations of rule-based approaches and motivates the need for LSTM.
 
 ---
 
 ### Step 5 — Dataset Collection
 **File**: `pasos/paso-05-recoleccion/paso_05_recoleccion.py`
 
-Runs a phased collection loop controlled by **spacebar**:
-
-| Phase | Description |
-|---|---|
-| **Waiting** | Idle until spacebar pressed |
-| **Countdown** | 5-second timer before recording begins |
-| **Recording** | Captures 30 frames → saves as `.npy` to `gestos/<name>/` |
-| **Paused** | Brief rest between sequences |
-
-Collects **200 sequences × 30 frames** per gesture class. Uses sliding-window overlap (`SAVE_EVERY=5`) as a data augmentation technique.
-
-**Output shape per file**: `(30, 126)` — 30 timesteps × 126 wrist-relative coordinates.
+Spacebar-driven recording loop that captures 200 sequences of 30 frames per gesture class and saves them as `.npy` arrays of shape `(30, 126)` to `gestos/`.
 
 ---
 
 ### Step 6 — LSTM Model Training
 **File**: `pasos/paso-06-entrenamiento/`
 
-Loads all `.npy` files from `gestos/`, builds a 3D tensor `(N, 30, 126)`, one-hot encodes the labels, and trains a TensorFlow/Keras LSTM network:
-
-```
-Input  → LSTM(64, return_sequences=True)
-       → LSTM(128, return_sequences=True)
-       → LSTM(64)
-       → Dense(64, relu)
-       → Dense(num_classes, softmax)
-```
-
-**Hyperparameters** (from `config.py`):
-
-| Parameter | Value |
-|---|---|
-| `EPOCHS` | 100 |
-| `BATCH_SIZE` | 32 |
-| `TEST_SIZE` | 20% |
-| `RANDOM_STATE` | 42 |
-
-Saves the trained model to `modelos/lstm_gestos.keras`.
+Loads the collected `.npy` dataset, builds a stacked LSTM network in Keras, trains it for up to 100 epochs, and exports the model to `modelos/lstm_gestos.keras`.
 
 ---
 
 ### Step 7 — Real-time LSTM Inference
 **File**: `pasos/paso-07-deteccion-tiempo-real/paso_07_deteccion.py`
 
-Maintains a rolling `deque` buffer of 30 keypoint frames. When full, runs `model.predict()` on a background thread to avoid blocking the camera loop. A prediction is accepted only when confidence >= `CONFIDENCE_THRESHOLD` (0.80).
+Feeds a 30-frame rolling buffer into the trained LSTM on a background thread. Accepts a prediction only when confidence exceeds 0.80.
 
 ---
 
 ### Step 8 — System Gesture Control
 **File**: `pasos/paso-08-control-sistema/paso_08_control.py`
 
-Translates recognized gestures into OS-level events via `pynput` (cross-platform) and `evdev` (Linux Wayland):
+Translates gesture output into OS actions. Uses `pynput` on all platforms and `evdev` on Linux Wayland for lower-level mouse control:
 
 | Gesture | Action |
 |---|---|
-| **Two-finger pose** | Move mouse cursor (relative, smoothed) |
+| **Two-finger pose** | Move mouse cursor (relative, EMA-smoothed) |
 | **Pinch** (thumb + index) | Left click |
 | **Swipe left / right** | Switch virtual workspace |
 
-Key parameters (from `config.py`):
-
-| Constant | Value | Description |
-|---|---|---|
-| `PINCH_THRESHOLD` | 0.06 | Normalized distance to trigger click |
-| `SWIPE_VELOCITY` | 0.035 | Minimum wrist velocity for swipe |
-| `CURSOR_SMOOTHING` | 0.4 | EMA factor for pointer smoothing |
-| `MOUSE_SENSITIVITY` | 6.0 | Cursor speed multiplier |
-
 ---
 
-## 🛠️ Installation
+## Installation
+
+### Platform support
+
+| Feature | Linux | Windows | macOS |
+|---|---|---|---|
+| Camera capture | Yes | Yes | Yes |
+| Hand landmark detection | Yes | Yes | Yes |
+| LSTM training & inference | Yes | Yes | Yes |
+| Mouse control | Yes (evdev + pynput) | Yes (pynput) | Yes (pynput) |
+| Workspace switching | Yes (hyprctl) | Yes (Win+Ctrl+Arrow) | Yes (Ctrl+Arrow) |
+
+> **Windows note**: The code automatically detects the OS at runtime (`platform.system()`). On Windows, `evdev` is never imported — mouse control uses `pynput` directly, and workspace switching uses `Ctrl+Win+Arrow`. All Steps 1–7 work identically across platforms. The only difference is in Step 8 system control behavior described below.
+
+---
 
 ### Prerequisites
 
@@ -292,9 +267,6 @@ Key parameters (from `config.py`):
 | pip | Latest |
 | Git | Any |
 | Webcam | USB or built-in |
-| OS | Linux (Wayland/X11) — Step 8 uses `evdev` |
-
-> ⚠️ **Wayland note**: Step 8 system control uses `evdev` for mouse and keyboard events. On X11 sessions, `pynput` is used as fallback. Make sure your user belongs to the `input` group: `sudo usermod -aG input $USER`.
 
 ---
 
@@ -309,10 +281,25 @@ cd GestureFlow
 
 ### 2. Create and activate the virtual environment
 
+**Linux / macOS**
 ```bash
 python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
+source venv/bin/activate
 ```
+
+**Windows (Command Prompt)**
+```cmd
+python -m venv venv
+venv\Scripts\activate.bat
+```
+
+**Windows (PowerShell)**
+```powershell
+python -m venv venv
+venv\Scripts\Activate.ps1
+```
+
+> If PowerShell blocks the script, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once.
 
 ---
 
@@ -322,14 +309,17 @@ source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-> **Note**: `mediapipe==0.10.35` installs `opencv-contrib-python` as a dependency. Do **not** add `opencv-python` separately — it will create a conflicting double-install that breaks `import cv2`.
+> **Important**: `mediapipe==0.10.35` already pulls in `opencv-contrib-python`. Do **not** add `opencv-python` separately — it creates a conflicting double-install that breaks `import cv2`.
+
+> **Windows**: `evdev` is a Linux-only package and is **not** in `requirements.txt`. It is only imported lazily inside `EvdevMouseController`, which is never instantiated on Windows. No changes to `requirements.txt` are needed.
 
 ---
 
 ### 4. Download the MediaPipe hand landmark model
 
-The `.task` binary is not tracked in this repository due to its size (~25 MB). Download it manually:
+The `.task` binary (~25 MB) is not tracked in this repository. Download it manually:
 
+**Linux / macOS**
 ```bash
 mkdir -p assets/models
 curl -L \
@@ -337,7 +327,15 @@ curl -L \
   -o assets/models/hand_landmarker.task
 ```
 
-Or download directly from [MediaPipe Models](https://developers.google.com/mediapipe/solutions/vision/hand_landmarker#models) and place the file at `assets/models/hand_landmarker.task`.
+**Windows (PowerShell)**
+```powershell
+New-Item -ItemType Directory -Force -Path assets\models
+Invoke-WebRequest `
+  -Uri "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task" `
+  -OutFile "assets\models\hand_landmarker.task"
+```
+
+Alternatively, download from [MediaPipe Models](https://developers.google.com/mediapipe/solutions/vision/hand_landmarker#models) and place the file at `assets/models/hand_landmarker.task`.
 
 ---
 
@@ -354,7 +352,25 @@ All dependencies OK
 
 ---
 
-### Quick-start summary
+### Windows-specific considerations
+
+The project is designed to run on Windows with no code changes required. The following is a summary of what differs:
+
+| Area | Linux behavior | Windows behavior |
+|---|---|---|
+| **Mouse control** | `evdev` UInput device (Wayland) with `pynput` fallback | `pynput` only — works out of the box |
+| **Workspace switching** | `hyprctl dispatch workspace` (Hyprland) | `Ctrl + Win + Left/Right Arrow` via `pynput` keyboard |
+| **`evdev` package** | Required for Wayland sessions | Never imported — no install needed |
+| **Camera index** | Typically `0` | Typically `0`; try `1` if camera not detected |
+| **Python version** | `python3` command | `python` command (check with `python --version`) |
+
+> **Workspace switching on Windows**: The shortcut `Ctrl+Win+Arrow` switches between virtual desktops in Windows 10 and Windows 11. This works automatically with no additional configuration.
+
+> **TensorFlow on Windows**: TensorFlow 2.16 supports Windows via pip. GPU acceleration requires the CUDA toolkit and cuDNN — for CPU-only training (the default in this project), no additional setup is needed.
+
+---
+
+### Quick-start (Linux)
 
 ```bash
 git clone https://github.com/<your-user>/GestureFlow.git
@@ -367,14 +383,25 @@ curl -L "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_la
 python main.py
 ```
 
+### Quick-start (Windows PowerShell)
+
+```powershell
+git clone https://github.com/<your-user>/GestureFlow.git
+cd GestureFlow
+python -m venv venv; venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+New-Item -ItemType Directory -Force -Path assets\models
+Invoke-WebRequest -Uri "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task" -OutFile "assets\models\hand_landmarker.task"
+python main.py
+```
+
 ---
 
-## 🚀 Running the Dashboard
+## Running the Dashboard
 
 The unified dashboard (`main.py`) is the primary entry point for Steps 4–8.
 
 ```bash
-source venv/bin/activate
 python main.py
 ```
 
@@ -392,13 +419,13 @@ Idle → [Select "Collection"] → Enter gesture name → Press Start → SPACE 
      → [Select "Control"]    → Hand gestures control your mouse and workspaces
 ```
 
-> **⚠️ Training** runs the Step 6 script as a **subprocess** — the GUI stays responsive but logs the training output to the console panel. Do not close the app while training.
+> **Training** runs the Step 6 script as a **subprocess** — the GUI stays responsive but logs the training output to the console panel. Do not close the app while training.
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
-All tunable parameters are centralized in [`config.py`](config.py). No magic numbers in the step scripts.
+All tunable parameters are centralized in [`config.py`](config.py). No magic numbers live in the step scripts.
 
 | Section | Constant | Default | Description |
 |---|---|---|---|
@@ -421,7 +448,7 @@ All tunable parameters are centralized in [`config.py`](config.py). No magic num
 
 ---
 
-## 🧰 Tech Stack
+## Tech Stack
 
 | Library | Version | Role |
 |---|---|---|
@@ -430,15 +457,15 @@ All tunable parameters are centralized in [`config.py`](config.py). No magic num
 | [OpenCV](https://opencv.org) | via mediapipe | Camera capture, frame processing, overlay drawing |
 | [NumPy](https://numpy.org) | 1.26.4 | Keypoint arrays, sequence tensors, one-hot encoding |
 | [scikit-learn](https://scikit-learn.org) | 1.9.0 | Train/test split, label encoding utilities |
-| [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter) | Latest | Premium dark-themed desktop GUI |
+| [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter) | Latest | Dark-themed desktop GUI |
 | [Pillow](https://python-pillow.org) | Latest | Converting OpenCV frames to Tkinter-compatible format |
-| [pynput](https://pynput.readthedocs.io) | ≥ 1.7.7 | Cross-platform mouse and keyboard control |
-| [evdev](https://python-evdev.readthedocs.io) | Latest | Low-level Linux input device control (Wayland) |
+| [pynput](https://pynput.readthedocs.io) | >= 1.7.7 | Cross-platform mouse and keyboard control |
+| [evdev](https://python-evdev.readthedocs.io) | Latest | Low-level Linux input device control (Wayland only) |
 
 ---
 
 <div align="center">
 
-Made with ❤️ as a learning project — from raw webcam frames to OS gesture control.
+Made as a learning project — from raw webcam frames to OS gesture control.
 
 </div>
