@@ -91,16 +91,16 @@ GestureFlow/
 │   └── test_mouse.py               # Prueba de posicionamiento del ratón pynput
 │
 └── pasos/                          # Pasos de aprendizaje ordenados (scripts independientes)
-    ├── [pasos/REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md)         # Glosario común de conceptos (OpenCV, MediaPipe, LSTM)
+    ├── REFERENCIA_COMUN.md         # Glosario común de conceptos (OpenCV, MediaPipe, LSTM)
     │
-    ├── [paso-01-camara/](file:///home/thewest/proyectos/GestureFlow/pasos/paso-01-camara/)             # Paso 1: Captura de cámara raw
-    ├── [paso-02-dibujo/](file:///home/thewest/proyectos/GestureFlow/pasos/paso-02-dibujo/)             # Paso 2: Dibujo de esqueleto sobre el frame
-    ├── [paso-03-tiempo-real/](file:///home/thewest/proyectos/GestureFlow/pasos/paso-03-tiempo-real/)        # Paso 3: Visualización de landmarks en tiempo real
-    ├── [paso-04-reconocimiento-vocales/](file:///home/thewest/proyectos/GestureFlow/pasos/paso-04-reconocimiento-vocales/)  # Paso 4: Reconocimiento de vocales basado en reglas
-    ├── [paso-05-recoleccion/](file:///home/thewest/proyectos/GestureFlow/pasos/paso-05-recoleccion/)        # Paso 5: Recolección automatizada de dataset de gestos
-    ├── [paso-06-entrenamiento/](file:///home/thewest/proyectos/GestureFlow/pasos/paso-06-entrenamiento/)      # Paso 6: Script de entrenamiento de red LSTM
-    ├── [paso-07-deteccion-tiempo-real/](file:///home/thewest/proyectos/GestureFlow/pasos/paso-07-deteccion-tiempo-real/)   # Paso 7: Inferencia LSTM en tiempo real
-    └── [paso-08-control-sistema/](file:///home/thewest/proyectos/GestureFlow/pasos/paso-08-control-sistema/)    # Paso 8: Control de SO mediante gestos (cursor, clic, swipe)
+    ├── paso-01-camara/             # Paso 1: Captura de cámara raw
+    ├── paso-02-dibujo/             # Paso 2: Dibujo de esqueleto sobre el frame
+    ├── paso-03-tiempo-real/        # Paso 3: Visualización de landmarks en tiempo real
+    ├── paso-04-reconocimiento-vocales/  # Paso 4: Reconocimiento de vocales basado en reglas
+    ├── paso-05-recoleccion/        # Paso 5: Recolección automatizada de dataset de gestos
+    ├── paso-06-entrenamiento/      # Paso 6: Script de entrenamiento de red LSTM
+    ├── paso-07-deteccion-tiempo-real/   # Paso 7: Inferencia LSTM en tiempo real
+    └── paso-08-control-sistema/    # Paso 8: Control de SO mediante gestos (cursor, clic, swipe)
 ```
 
 > Cada carpeta de paso contiene su propio archivo de documentación (`paso_0X_doc.md`) con notas detalladas de implementación, conceptos y solución a errores comunes. El archivo [pasos/REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md) documenta los conceptos compartidos (OpenCV, MediaPipe, LSTM).
