@@ -2,7 +2,7 @@
 
 A partir de la detección asíncrona en tiempo real (Paso 03), este paso procesa algebraicamente las coordenadas de los landmarks para clasificar de forma estática las cinco vocales en español ('A', 'E', 'I', 'O', 'U') para **ambas manos** de forma independiente.
 
-Para conocer en detalle los conceptos de rutas, cámara, inferencia asíncrona, control de colas y dibujo del esqueleto, consulta la [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+Para conocer en detalle los conceptos de rutas, cámara, inferencia asíncrona, control de colas y dibujo del esqueleto, consulta la [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -31,8 +31,8 @@ Para conocer en detalle los conceptos de rutas, cámara, inferencia asíncrona, 
 | Algoritmo de distancia para la letra 'O' | Exclusivo de este paso |
 | Validación temporal independiente por mano (`Left`/`Right`) | Exclusivo de este paso |
 | Evitar superposición en el HUD con offset vertical | Exclusivo de este paso |
-| Control de colas (`listo_para_inferir` y `ANCHO_INFERENCIA`) | [REF §3.4](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#34-control-de-flujo-de-inferencia-asíncrona) |
-| Inferencia asíncrona en tiempo real (`LIVE_STREAM`) | [REF §3.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode) |
+| Control de colas (`listo_para_inferir` y `ANCHO_INFERENCIA`) | [REF §3.4](../../pasos/REFERENCIA_COMUN.md#34-control-de-flujo-de-inferencia-asíncrona) |
+| Inferencia asíncrona en tiempo real (`LIVE_STREAM`) | [REF §3.3](../../pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode) |
 
 **Criterio de éxito:**
 - Al gesticular una vocal con la mano izquierda, derecha o ambas, el sistema muestra `"Mano Izquierda - Validando X..."` o `"Mano Derecha - Validando Y..."` en el HUD.
@@ -45,10 +45,10 @@ Para conocer en detalle los conceptos de rutas, cámara, inferencia asíncrona, 
 
 | Archivo | Rol |
 |---------|-----|
-| [paso_04_vocales.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-04-reconocimiento-vocales/paso_04_vocales.py) | Script de clasificación analítica de vocales |
-| [paso_04_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-04-reconocimiento-vocales/paso_04_doc.md) | Esta documentación |
+| [paso_04_vocales.py](../../pasos/paso-04-reconocimiento-vocales/paso_04_vocales.py) | Script de clasificación analítica de vocales |
+| [paso_04_doc.md](../../pasos/paso-04-reconocimiento-vocales/paso_04_doc.md) | Esta documentación |
 
-**Glosario y conceptos comunes:** [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+**Glosario y conceptos comunes:** [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -78,7 +78,7 @@ Para conocer en detalle los conceptos de rutas, cámara, inferencia asíncrona, 
 
 ## 4. Lógica de Clasificación de Vocales
 
-La función `get_vowel` determina el estado de la mano basándose en la posición de sus 21 landmarks en el eje `y`. Ver mapa en [REF §4.2](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#42-los-21-landmarks-de-la-mano).
+La función `get_vowel` determina el estado de la mano basándose en la posición de sus 21 landmarks en el eje `y`. Ver mapa en [REF §4.2](../../pasos/REFERENCIA_COMUN.md#42-los-21-landmarks-de-la-mano).
 
 ### Reglas algebraicas para cada vocal:
 - **Vocal 'A'**: Dedos índice, medio, anular y meñique **cerrados** (yema debajo de la articulación PIP). Pulgar apuntando hacia arriba y al lateral exterior de la mano.
@@ -118,7 +118,7 @@ python pasos/paso-04-reconocimiento-vocales/paso_04_vocales.py
 
 ## 8. Errores frecuentes
 
-Si notas fallas comunes de la webcam o del modelo, consulta la **Tabla de Errores Frecuentes Unificada** en la [Sección 6 de REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
+Si notas fallas comunes de la webcam o del modelo, consulta la **Tabla de Errores Frecuentes Unificada** en la [Sección 6 de REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
 
 ---
 
@@ -127,11 +127,11 @@ Si notas fallas comunes de la webcam o del modelo, consulta la **Tabla de Errore
 Has aprendido a clasificar gestos **estáticos** de múltiples manos mediante reglas heurísticas directas.
 
 **Siguiente etapa**:
-- [Paso 05 — Recolección](file:///home/thewest/proyectos/GestureFlow/pasos/paso-05-recoleccion/paso_05_doc.md): Grabar secuencias continuas de landmarks en archivos `.npy`.
-- [Paso 06 — Entrenamiento](file:///home/thewest/proyectos/GestureFlow/pasos/paso-06-entrenamiento/paso_06_doc.md): Alimentar una red neuronal recurrente LSTM para clasificar movimientos complejos.
+- [Paso 05 — Recolección](../../pasos/paso-05-recoleccion/paso_05_doc.md): Grabar secuencias continuas de landmarks en archivos `.npy`.
+- [Paso 06 — Entrenamiento](../../pasos/paso-06-entrenamiento/paso_06_doc.md): Alimentar una red neuronal recurrente LSTM para clasificar movimientos complejos.
 
 ---
 
 ## 10. Referencia del código fuente
 
-El script completo vive en [paso_04_vocales.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-04-reconocimiento-vocales/paso_04_vocales.py).
+El script completo vive en [paso_04_vocales.py](../../pasos/paso-04-reconocimiento-vocales/paso_04_vocales.py).

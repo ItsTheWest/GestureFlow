@@ -2,7 +2,7 @@
 
 Paso final del pipeline: entrenar una red neuronal **LSTM** (Long Short-Term Memory) con los datos temporales recolectados en el paso 05 para reconocer gestos dinámicos de la mano.
 
-Para conocer en detalle los conceptos de redes recurrentes LSTM, forma de los tensores de entrada, codificación de clases y compiladores del optimizador, consulta la [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+Para conocer en detalle los conceptos de redes recurrentes LSTM, forma de los tensores de entrada, codificación de clases y compiladores del optimizador, consulta la [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -46,10 +46,10 @@ Para conocer en detalle los conceptos de redes recurrentes LSTM, forma de los te
 
 | Archivo | Rol |
 |---------|-----|
-| [paso_06_recolecion.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-06-entrenamiento/paso_06_recolecion.py) | Script de entrenamiento LSTM (Keras / TensorFlow) |
-| [paso_06_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-06-entrenamiento/paso_06_doc.md) | Esta documentación |
+| [paso_06_recolecion.py](../../pasos/paso-06-entrenamiento/paso_06_recolecion.py) | Script de entrenamiento LSTM (Keras / TensorFlow) |
+| [paso_06_doc.md](../../pasos/paso-06-entrenamiento/paso_06_doc.md) | Esta documentación |
 
-**Glosario y conceptos comunes:** [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+**Glosario y conceptos comunes:** [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -82,13 +82,13 @@ flowchart TD
 
 ## 4. Conceptos clave
 
-Para una descripción teórica de por qué se utilizan celdas de memoria LSTM para resolver dependencias temporales y la estructura detallada del tensor `(batch_size, 30, 126)`, consulta la [Sección 5 de REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#5-entrenamiento-lstm-y-redes-neuronales).
+Para una descripción teórica de por qué se utilizan celdas de memoria LSTM para resolver dependencias temporales y la estructura detallada del tensor `(batch_size, 30, 126)`, consulta la [Sección 5 de REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md#5-entrenamiento-lstm-y-redes-neuronales).
 
 ---
 
 ## 5. Estructura de datos de entrada
 
-El cargador de datos itera sobre el directorio de gestos y lee de manera secuencial los arrays guardados. Para verificar las dimensiones internas de las secuencias, consulta [REF §4.4](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#44-formato-npy-y-secuencias-temporales).
+El cargador de datos itera sobre el directorio de gestos y lee de manera secuencial los arrays guardados. Para verificar las dimensiones internas de las secuencias, consulta [REF §4.4](../../pasos/REFERENCIA_COMUN.md#44-formato-npy-y-secuencias-temporales).
 
 ```python
 import numpy as np
@@ -140,7 +140,7 @@ model = Sequential([
 ## 7. Flujo de entrenamiento
 
 ### Compilación y Métricas
-Configura el optimizador `Adam` y la pérdida `categorical_crossentropy` para clasificación multiclase. Ver detalles conceptuales en [REF §5.4](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#54-hiperparámetros-de-compilación).
+Configura el optimizador `Adam` y la pérdida `categorical_crossentropy` para clasificación multiclase. Ver detalles conceptuales en [REF §5.4](../../pasos/REFERENCIA_COMUN.md#54-hiperparámetros-de-compilación).
 
 ```python
 model.compile(
@@ -151,7 +151,7 @@ model.compile(
 ```
 
 ### Ajuste y División del Dataset
-Se utiliza `train_test_split` de scikit-learn para reservar un 20% del conjunto de datos para validación (`test_size=0.2`). Las etiquetas se transforman a vectores binarios categóricos (one-hot). Ver concepto de codificación en [REF §5.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#53-categorización-de-etiquetas-one-hot-encoding).
+Se utiliza `train_test_split` de scikit-learn para reservar un 20% del conjunto de datos para validación (`test_size=0.2`). Las etiquetas se transforman a vectores binarios categóricos (one-hot). Ver concepto de codificación en [REF §5.3](../../pasos/REFERENCIA_COMUN.md#53-categorización-de-etiquetas-one-hot-encoding).
 
 ```python
 from sklearn.model_selection import train_test_split
@@ -204,7 +204,7 @@ python pasos/paso-06-entrenamiento/paso_06_recolecion.py
 
 ## 10. Errores frecuentes
 
-Para resolver problemas asociados a la falta de carpetas, desajuste de dimensiones en arrays de entrada, falta del módulo TensorFlow o sobreajuste (overfitting), consulta la **Tabla de Errores Frecuentes Unificada** en la [Sección 6 de REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
+Para resolver problemas asociados a la falta de carpetas, desajuste de dimensiones en arrays de entrada, falta del módulo TensorFlow o sobreajuste (overfitting), consulta la **Tabla de Errores Frecuentes Unificada** en la [Sección 6 de REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
 
 ---
 

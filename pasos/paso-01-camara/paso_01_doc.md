@@ -2,7 +2,7 @@
 
 Abre la webcam, muestra vídeo en **color** con **espejo**, contador de frames y logs en consola. Solo OpenCV; sin MediaPipe.
 
-Para conocer en detalle los conceptos de cámara, volteo horizontal, refresco de ventanas y liberación de recursos, consulta la [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+Para conocer en detalle los conceptos de cámara, volteo horizontal, refresco de ventanas y liberación de recursos, consulta la [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -45,10 +45,10 @@ Para conocer en detalle los conceptos de cámara, volteo horizontal, refresco de
 
 | Archivo | Rol |
 |---------|-----|
-| [paso_01_camara.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-01-camara/paso_01_camara.py) | Script del paso |
-| [paso_01_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-01-camara/paso_01_doc.md) | Esta documentación |
+| [paso_01_camara.py](../../pasos/paso-01-camara/paso_01_camara.py) | Script del paso |
+| [paso_01_doc.md](../../pasos/paso-01-camara/paso_01_doc.md) | Esta documentación |
 
-**Glosario y conceptos comunes:** [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+**Glosario y conceptos comunes:** [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -92,15 +92,15 @@ flowchart TD
 
 ### `import cv2`
 OpenCV: captura, volteo espejo, texto, visualización y liberación de recursos.
-Para detalles sobre espacios de color (BGR a RGB) y por qué OpenCV lee por defecto en BGR, consulta la [Sección 3.2 de REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#32-espacio-de-color-bgr-a-rgb-mpimage).
+Para detalles sobre espacios de color (BGR a RGB) y por qué OpenCV lee por defecto en BGR, consulta la [Sección 3.2 de REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md#32-espacio-de-color-bgr-a-rgb-mpimage).
 
 ### Tabla de variables
 
 | Nombre | Significado | Concepto General |
 |--------|-------------|------------------|
-| `cap` | Objeto de captura de la cámara. | [REF §2.1](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#21-captura-de-cámara-cv2videocapture) |
-| `ret` | `True` si `read()` devolvió un frame válido. | [REF §2.1](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#21-captura-de-cámara-cv2videocapture) |
-| `frame` | Imagen BGR `(alto, ancho, 3)`, p. ej. `(480, 640, 3)`. | [REF §2.1](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#21-captura-de-cámara-cv2videocapture) |
+| `cap` | Objeto de captura de la cámara. | [REF §2.1](../../pasos/REFERENCIA_COMUN.md#21-captura-de-cámara-cv2videocapture) |
+| `ret` | `True` si `read()` devolvió un frame válido. | [REF §2.1](../../pasos/REFERENCIA_COMUN.md#21-captura-de-cámara-cv2videocapture) |
+| `frame` | Imagen BGR `(alto, ancho, 3)`, p. ej. `(480, 640, 3)`. | [REF §2.1](../../pasos/REFERENCIA_COMUN.md#21-captura-de-cámara-cv2videocapture) |
 | `frame_count` | Frames leídos con éxito desde el inicio del bucle. | Específico de este paso (estadísticas) |
 | `primer_frame_logeado` | Evita repetir el log detallado del primer frame. | Control de flujo local |
 
@@ -110,25 +110,25 @@ Para detalles sobre espacios de color (BGR a RGB) y por qué OpenCV lee por defe
 
 ### Apertura y error fatal
 Abre el dispositivo `0` (primera cámara). Si no se puede abrir, el script termina.
-Ver concepto detallado de inicialización en [REF §2.1](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#21-captura-de-cámara-cv2videocapture).
+Ver concepto detallado de inicialización en [REF §2.1](../../pasos/REFERENCIA_COMUN.md#21-captura-de-cámara-cv2videocapture).
 
 ### Espejo y contador
 Aplica el volteo horizontal para crear una vista en modo espejo.
-Ver concepto en [REF §2.2](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#22-volteo-horizontal-cv2flip).
+Ver concepto en [REF §2.2](../../pasos/REFERENCIA_COMUN.md#22-volteo-horizontal-cv2flip).
 
 ### Textos y visualización (HUD)
 Muestra el contador en pantalla y la ayuda de comandos.
-Ver funciones de dibujo en [REF §2.4](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#24-elementos-gráficos-e-interfaz-hud).
+Ver funciones de dibujo en [REF §2.4](../../pasos/REFERENCIA_COMUN.md#24-elementos-gráficos-e-interfaz-hud).
 
 ### Control de teclado (`q`)
 Termina el bucle al presionar la tecla `q` en la ventana enfocada.
-Ver mecanismo de teclas en [REF §2.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#23-refresco-y-detección-de-teclado-cv2waitkey).
+Ver mecanismo de teclas en [REF §2.3](../../pasos/REFERENCIA_COMUN.md#23-refresco-y-detección-de-teclado-cv2waitkey).
 
 ---
 
 ## 6. OpenCV, teclas y ventana
 
-Para una referencia completa de las funciones de captura, volteo, dibujo de textos y terminación, consulta la [Sección 2 de REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#2-opencv-y-captura-de-vídeo).
+Para una referencia completa de las funciones de captura, volteo, dibujo de textos y terminación, consulta la [Sección 2 de REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md#2-opencv-y-captura-de-vídeo).
 
 ---
 
@@ -161,7 +161,7 @@ python pasos/paso-01-camara/paso_01_camara.py
 
 ## 9. Errores frecuentes
 
-Para resolver problemas como ventanas negras, fallas al abrir la cámara, imágenes invertidas o bloqueos al cerrar el script, consulta la **Tabla de Errores Frecuentes Unificada** en la [Sección 6 de REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
+Para resolver problemas como ventanas negras, fallas al abrir la cámara, imágenes invertidas o bloqueos al cerrar el script, consulta la **Tabla de Errores Frecuentes Unificada** en la [Sección 6 de REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
 
 ---
 
@@ -173,10 +173,10 @@ Para resolver problemas como ventanas negras, fallas al abrir la cámara, imáge
 - [ ] En consola aparece **`Primer frame OK`** con `shape` de 3 dimensiones.
 - [ ] Al pulsar **`q`**, ves **`Total frames leidos`** y el programa termina sin colgarse.
 
-**Siguiente:** [Paso 02 — Dibujo](file:///home/thewest/proyectos/GestureFlow/pasos/paso-02-dibujo/paso_02_doc.md) — cámara + MediaPipe modo `IMAGE` al pulsar **ESPACIO**.
+**Siguiente:** [Paso 02 — Dibujo](../../pasos/paso-02-dibujo/paso_02_doc.md) — cámara + MediaPipe modo `IMAGE` al pulsar **ESPACIO**.
 
 ---
 
 ## 11. Referencia del código fuente
 
-El script completo vive en [paso_01_camara.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-01-camara/paso_01_camara.py).
+El script completo vive en [paso_01_camara.py](../../pasos/paso-01-camara/paso_01_camara.py).

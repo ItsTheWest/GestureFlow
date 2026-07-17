@@ -2,7 +2,7 @@
 
 Pipeline de **recolección de datos para entrenamiento**: abre la cámara, detecta manos con MediaPipe en modo `IMAGE` (síncrono), y guarda secuencias continuas en archivos `.npy` que posteriormente alimentarán una red recurrente LSTM.
 
-Para conocer en detalle los conceptos de extracción de keypoints (126 valores), relleno con ceros, estructuración de secuencias y solapamiento temporal, consulta la [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+Para conocer en detalle los conceptos de extracción de keypoints (126 valores), relleno con ceros, estructuración de secuencias y solapamiento temporal, consulta la [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -48,11 +48,11 @@ Para conocer en detalle los conceptos de extracción de keypoints (126 valores),
 
 | Archivo | Rol |
 |---------|-----|
-| [paso_05_recoleccion.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-05-recoleccion/paso_05_recoleccion.py) | Script de grabación y almacenamiento de gestos |
-| [paso_05_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-05-recoleccion/paso_05_doc.md) | Esta documentación |
-| [INSTRUCTIONS_PASO_05.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-05-recoleccion/INSTRUCTIONS_PASO_05.md) | Guía de implementación del script paso a paso |
+| [paso_05_recoleccion.py](../../pasos/paso-05-recoleccion/paso_05_recoleccion.py) | Script de grabación y almacenamiento de gestos |
+| [paso_05_doc.md](../../pasos/paso-05-recoleccion/paso_05_doc.md) | Esta documentación |
+| [INSTRUCTIONS_PASO_05.md](../../pasos/paso-05-recoleccion/INSTRUCTIONS_PASO_05.md) | Guía de implementación del script paso a paso |
 
-**Glosario y conceptos comunes:** [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+**Glosario y conceptos comunes:** [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -96,7 +96,7 @@ flowchart TD
 
 ## 4. Importaciones y variables
 
-Para conocer la descripción detallada de las librerías NumPy, OpenCV, colecciones y el manejo de rutas absolutas, consulta la [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+Para conocer la descripción detallada de las librerías NumPy, OpenCV, colecciones y el manejo de rutas absolutas, consulta la [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -106,10 +106,10 @@ Las constantes configuran el tamaño, duración e intervalos de muestreo:
 
 | Constante | Valor | Significado Conceptual | Referencia Común |
 |-----------|-------|-----------------------|------------------|
-| `SEQUENCE_LENGTH` | `30` | Cantidad de fotogramas (pasos de tiempo) por gesto. | [REF §4.4](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#44-formato-npy-y-secuencias-temporales) |
-| `NUM_FEATURES` | `126` | 21 landmarks × 3 coordenadas (x, y, z) × 2 manos. | [REF §4.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#43-extracción-y-relleno-de-características-extract_keypoints) |
+| `SEQUENCE_LENGTH` | `30` | Cantidad de fotogramas (pasos de tiempo) por gesto. | [REF §4.4](../../pasos/REFERENCIA_COMUN.md#44-formato-npy-y-secuencias-temporales) |
+| `NUM_FEATURES` | `126` | 21 landmarks × 3 coordenadas (x, y, z) × 2 manos. | [REF §4.3](../../pasos/REFERENCIA_COMUN.md#43-extracción-y-relleno-de-características-extract_keypoints) |
 | `NUM_SEQUENCES` | `30` | Número de archivos `.npy` de entrenamiento por cada gesto. | Parámetro de recolección local |
-| `SAVE_EVERY` | `15` | Intervalo de guardado automático (produce un 50% de solapamiento). | [REF §4.5](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#45-solapamiento-temporal-aumento-de-datos) |
+| `SAVE_EVERY` | `15` | Intervalo de guardado automático (produce un 50% de solapamiento). | [REF §4.5](../../pasos/REFERENCIA_COMUN.md#45-solapamiento-temporal-aumento-de-datos) |
 | `COUNTDOWN_SECS` | `3` | Segundos que dura la cuenta atrás en pantalla antes de grabar. | Parámetro visual de UI |
 | `FLASH_DURATION` | `15` | Frames que dura la notificación verde "¡GUARDADO!" en pantalla. | Parámetro visual de UI |
 
@@ -118,9 +118,9 @@ Las constantes configuran el tamaño, duración e intervalos de muestreo:
 ## 6. Funciones del código
 
 ### Funciones Comunes del Sistema
-- `build_landmarker()`: Configura el detector en modo `IMAGE`. Ver [REF §3.1](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#31-carga-del-modelo-handlandmarkeroptions-y-baseoptions).
-- `extract_keypoints(results)`: Aplana las marcas a un array unidimensional `(126,)` rellenando con ceros si hay manos ausentes. Ver detalle en [REF §4.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#43-extracción-y-relleno-de-características-extract_keypoints).
-- `pedir_nombre_gesto()`: Gestiona la entrada por consola, crea la carpeta en el disco y calcula el índice de reanudación leyendo los archivos existentes. Ver concepto en [REF §4.4](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#44-formato-npy-y-secuencias-temporales).
+- `build_landmarker()`: Configura el detector en modo `IMAGE`. Ver [REF §3.1](../../pasos/REFERENCIA_COMUN.md#31-carga-del-modelo-handlandmarkeroptions-y-baseoptions).
+- `extract_keypoints(results)`: Aplana las marcas a un array unidimensional `(126,)` rellenando con ceros si hay manos ausentes. Ver detalle en [REF §4.3](../../pasos/REFERENCIA_COMUN.md#43-extracción-y-relleno-de-características-extract_keypoints).
+- `pedir_nombre_gesto()`: Gestiona la entrada por consola, crea la carpeta en el disco y calcula el índice de reanudación leyendo los archivos existentes. Ver concepto en [REF §4.4](../../pasos/REFERENCIA_COMUN.md#44-formato-npy-y-secuencias-temporales).
 
 ### Funciones Específicas de Interfaz Gráfica (HUD)
 - `draw_waiting(frame, gesture, saved)`: Dibuja la pantalla de espera (Fase 0) solicitando pulsar **ESPACIO** para comenzar.
@@ -157,7 +157,7 @@ gestos/
     ├── 1.npy   → shape (30, 126)
     └── 29.npy  → shape (30, 126)
 ```
-Cada archivo `.npy` almacena un array binario de precisión `float32`. Para la verificación conceptual del guardado, consulta la [Sección 4.4 de REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#44-formato-npy-y-secuencias-temporales).
+Cada archivo `.npy` almacena un array binario de precisión `float32`. Para la verificación conceptual del guardado, consulta la [Sección 4.4 de REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md#44-formato-npy-y-secuencias-temporales).
 
 ---
 
@@ -195,7 +195,7 @@ python pasos/paso-05-recoleccion/paso_05_recoleccion.py
 
 ## 12. Errores frecuentes
 
-Para diagnosticar fallas como que no se guarde ningún archivo `.npy` (debido a la visibilidad de la mano), congelamientos en la cuenta atrás o errores de dimensiones del array, consulta la **Tabla de Errores Frecuentes Unificada** en la [Sección 6 de REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
+Para diagnosticar fallas como que no se guarde ningún archivo `.npy` (debido a la visibilidad de la mano), congelamientos en la cuenta atrás o errores de dimensiones del array, consulta la **Tabla de Errores Frecuentes Unificada** en la [Sección 6 de REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
 
 ---
 
@@ -207,4 +207,4 @@ Para diagnosticar fallas como que no se guarde ningún archivo `.npy` (debido a 
 - [ ] Ejecutar el script nuevamente con el mismo nombre de gesto detecta los archivos previos y reanuda el conteo sin sobreescribir.
 - [ ] Presionar **Q** cierra la webcam sin dejar colgado el proceso en segundo plano.
 
-**Siguiente:** [Paso 06 — Entrenamiento LSTM](file:///home/thewest/proyectos/GestureFlow/pasos/paso-06-entrenamiento/paso_06_doc.md) — entrenamiento del modelo clasificador a partir de los datos guardados.
+**Siguiente:** [Paso 06 — Entrenamiento LSTM](../../pasos/paso-06-entrenamiento/paso_06_doc.md) — entrenamiento del modelo clasificador a partir de los datos guardados.
