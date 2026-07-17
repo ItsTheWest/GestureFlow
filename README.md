@@ -182,56 +182,56 @@ The dashboard (`main.py`) exposes a **segmented button** to switch between pipel
 Each step is self-contained and has its own documentation inside its folder. The descriptions below are intentional summaries — read the per-step `*_doc.md` for full implementation details.
 
 ### Step 1 — Raw Camera Capture
-**File**: `pasos/paso-01-camara/paso_01_camara.py`
+**File**: [paso_01_camara.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-01-camara/paso_01_camara.py) | **Documentation**: [paso_01_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-01-camara/paso_01_doc.md)
 
 Foundational webcam loop using `cv2.VideoCapture`. Establishes the read-flip-display pattern that all subsequent steps build on.
 
 ---
 
 ### Step 2 — Hand Landmark Drawing
-**File**: `pasos/paso-02-dibujo/paso_02_dibujo.py`
+**File**: [paso_02_dibujo.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-02-dibujo/paso_02_dibujo.py) | **Documentation**: [paso_02_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-02-dibujo/paso_02_doc.md)
 
 Introduces MediaPipe `HandLandmarker` in synchronous `IMAGE` mode. Draws the 21-point hand skeleton over each frame.
 
 ---
 
 ### Step 3 — Real-time Landmark Visualization
-**File**: `pasos/paso-03-tiempo-real/paso_03_tiempo_real.py`
+**File**: [paso_03_tiempo_real.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-03-tiempo-real/paso_03_tiempo_real.py) | **Documentation**: [paso_03_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-03-tiempo-real/paso_03_doc.md)
 
 Upgrades to `LIVE_STREAM` async mode with a readiness flag to prevent frame queue buildup. Optimizes inference by resizing frames before detection.
 
 ---
 
 ### Step 4 — Vowel Recognition (Rule-based)
-**File**: `pasos/paso-04-reconocimiento-vocales/paso_04_vocales.py`
+**File**: [paso_04_vocales.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-04-reconocimiento-vocales/paso_04_vocales.py) | **Documentation**: [paso_04_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-04-reconocimiento-vocales/paso_04_doc.md)
 
 Classifies the five Spanish vowels using geometric rules on landmark angles — no model required. Demonstrates the limitations of rule-based approaches and motivates the need for LSTM.
 
 ---
 
 ### Step 5 — Dataset Collection
-**File**: `pasos/paso-05-recoleccion/paso_05_recoleccion.py`
+**File**: [paso_05_recoleccion.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-05-recoleccion/paso_05_recoleccion.py) | **Documentation**: [paso_05_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-05-recoleccion/paso_05_doc.md)
 
 Spacebar-driven recording loop that captures 200 sequences of 30 frames per gesture class and saves them as `.npy` arrays of shape `(30, 126)` to `gestos/`.
 
 ---
 
 ### Step 6 — LSTM Model Training
-**File**: `pasos/paso-06-entrenamiento/`
+**File**: [paso_06_entrenamiento.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-06-entrenamiento/paso_06_entrenamiento.py) | **Documentation**: [paso_06_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-06-entrenamiento/paso_06_doc.md)
 
 Loads the collected `.npy` dataset, builds a stacked LSTM network in Keras, trains it for up to 100 epochs, and exports the model to `modelos/lstm_gestos.keras`.
 
 ---
 
 ### Step 7 — Real-time LSTM Inference
-**File**: `pasos/paso-07-deteccion-tiempo-real/paso_07_deteccion.py`
+**File**: [paso_07_deteccion.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-07-deteccion-tiempo-real/paso_07_deteccion.py) | **Documentation**: [paso_07_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-07-deteccion-tiempo-real/paso_07_doc.md)
 
 Feeds a 30-frame rolling buffer into the trained LSTM on a background thread. Accepts a prediction only when confidence exceeds 0.80.
 
 ---
 
 ### Step 8 — System Gesture Control
-**File**: `pasos/paso-08-control-sistema/paso_08_control.py`
+**File**: [paso_08_control.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-08-control-sistema/paso_08_control.py) | **Documentation**: [paso_08_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-08-control-sistema/paso_08_doc.md)
 
 Translates gesture output into OS actions. Uses `pynput` on all platforms and `evdev` on Linux Wayland for lower-level mouse control:
 
