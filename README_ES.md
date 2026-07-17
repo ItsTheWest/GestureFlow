@@ -35,12 +35,12 @@ GestureFlow es un proyecto de aprendizaje estructurado que recorre el ciclo de v
 
 | Fase | Descripción |
 |---|---|
-| **Exploración** | Captura de cámara raw y visualización de landmarks ([Pasos 1–3](file:///home/thewest/proyectos/GestureFlow/pasos/paso-01-camara/)) |
-| **Reconocimiento basado en reglas** | Detección estática de gestos sin redes neuronales ([Step 4](file:///home/thewest/proyectos/GestureFlow/pasos/paso-04-reconocimiento-vocales/)) |
-| **Pipeline de datos** | Recolección automatizada de secuencias en datasets `.npy` ([Step 5](file:///home/thewest/proyectos/GestureFlow/pasos/paso-05-recoleccion/)) |
-| **Entrenamiento** | Entrenamiento del modelo LSTM con datos de secuencias temporales ([Step 6](file:///home/thewest/proyectos/GestureFlow/pasos/paso-06-entrenamiento/)) |
-| **Inferencia** | Clasificación de gestos en tiempo real con el modelo entrenado ([Step 7](file:///home/thewest/proyectos/GestureFlow/pasos/paso-07-deteccion-tiempo-real/)) |
-| **Control del sistema** | Acciones del sistema operativo impulsadas por gestos reconocidos ([Step 8](file:///home/thewest/proyectos/GestureFlow/pasos/paso-08-control-sistema/)) |
+| **Exploración** | Captura de cámara raw y visualización de landmarks ([Pasos 1–3](pasos/paso-01-camara/)) |
+| **Reconocimiento basado en reglas** | Detección estática de gestos sin redes neuronales ([Step 4](pasos/paso-04-reconocimiento-vocales/)) |
+| **Pipeline de datos** | Recolección automatizada de secuencias en datasets `.npy` ([Step 5](pasos/paso-05-recoleccion/)) |
+| **Entrenamiento** | Entrenamiento del modelo LSTM con datos de secuencias temporales ([Step 6](pasos/paso-06-entrenamiento/)) |
+| **Inferencia** | Clasificación de gestos en tiempo real con el modelo entrenado ([Step 7](pasos/paso-07-deteccion-tiempo-real/)) |
+| **Control del sistema** | Acciones del sistema operativo impulsadas por gestos reconocidos ([Step 8](pasos/paso-08-control-sistema/)) |
 
 El resultado final es un panel de control unificado con **CustomTkinter** (`main.py`) que integra los pasos 4 a 8 en una interfaz gráfica oscura con un visor de cámara en vivo incrustado.
 
@@ -103,7 +103,7 @@ GestureFlow/
     └── paso-08-control-sistema/    # Paso 8: Control de SO mediante gestos (cursor, clic, swipe)
 ```
 
-> Cada carpeta de paso contiene su propio archivo de documentación (`paso_0X_doc.md`) con notas detalladas de implementación, conceptos y solución a errores comunes. El archivo [pasos/REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md) documenta los conceptos compartidos (OpenCV, MediaPipe, LSTM).
+> Cada carpeta de paso contiene su propio archivo de documentación (`paso_0X_doc.md`) con notas detalladas de implementación, conceptos y solución a errores comunes. El archivo [pasos/REFERENCIA_COMUN.md](pasos/REFERENCIA_COMUN.md) documenta los conceptos compartidos (OpenCV, MediaPipe, LSTM).
 
 ### Archivos clave de un vistazo
 
@@ -198,57 +198,57 @@ El panel (`main.py`) expone un **botón segmentado** para alternar entre los mod
 
 ## Pasos del Pipeline
 
-### [Paso 1 — Captura de Cámara Raw](file:///home/thewest/proyectos/GestureFlow/pasos/paso-01-camara/)
-**Folder**: [paso-01-camara/](file:///home/thewest/proyectos/GestureFlow/pasos/paso-01-camara/) | **File**: [paso_01_camara.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-01-camara/paso_01_camara.py) | **Documentation**: [paso_01_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-01-camara/paso_01_doc.md)
+### [Paso 1 — Captura de Cámara Raw](pasos/paso-01-camara/)
+**Folder**: [paso-01-camara/](pasos/paso-01-camara/) | **File**: [paso_01_camara.py](pasos/paso-01-camara/paso_01_camara.py) | **Documentation**: [paso_01_doc.md](pasos/paso-01-camara/paso_01_doc.md)
 
 Bucle de cámara básico utilizando `cv2.VideoCapture`. Establece el patrón de lectura-volteo-visualización sobre el cual se construyen los siguientes pasos.
 
 ---
 
-### [Paso 2 — Dibujo de Landmarks en Mano](file:///home/thewest/proyectos/GestureFlow/pasos/paso-02-dibujo/)
-**Folder**: [paso-02-dibujo/](file:///home/thewest/proyectos/GestureFlow/pasos/paso-02-dibujo/) | **File**: [paso_02_dibujo.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-02-dibujo/paso_02_dibujo.py) | **Documentation**: [paso_02_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-02-dibujo/paso_02_doc.md)
+### [Paso 2 — Dibujo de Landmarks en Mano](pasos/paso-02-dibujo/)
+**Folder**: [paso-02-dibujo/](pasos/paso-02-dibujo/) | **File**: [paso_02_dibujo.py](pasos/paso-02-dibujo/paso_02_dibujo.py) | **Documentation**: [paso_02_doc.md](pasos/paso-02-dibujo/paso_02_doc.md)
 
 Introduce MediaPipe `HandLandmarker` en modo síncrono `IMAGE`. Dibuja el esqueleto de 21 puntos clave sobre cada frame.
 
 ---
 
-### [Paso 3 — Visualización de Landmarks en Tiempo Real](file:///home/thewest/proyectos/GestureFlow/pasos/paso-03-tiempo-real/)
-**Folder**: [paso-03-tiempo-real/](file:///home/thewest/proyectos/GestureFlow/pasos/paso-03-tiempo-real/) | **File**: [paso_03_tiempo_real.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-03-tiempo-real/paso_03_tiempo_real.py) | **Documentation**: [paso_03_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-03-tiempo-real/paso_03_doc.md)
+### [Paso 3 — Visualización de Landmarks en Tiempo Real](pasos/paso-03-tiempo-real/)
+**Folder**: [paso-03-tiempo-real/](pasos/paso-03-tiempo-real/) | **File**: [paso_03_tiempo_real.py](pasos/paso-03-tiempo-real/paso_03_tiempo_real.py) | **Documentation**: [paso_03_doc.md](pasos/paso-03-tiempo-real/paso_03_doc.md)
 
 Actualiza la detección al modo asíncrono `LIVE_STREAM` con una bandera de disponibilidad para evitar que los frames se acumulen en cola. Optimiza la inferencia reduciendo el tamaño del frame.
 
 ---
 
-### [Paso 4 — Reconocimiento de Vocales (Basado en Reglas)](file:///home/thewest/proyectos/GestureFlow/pasos/paso-04-reconocimiento-vocales/)
-**Folder**: [paso-04-reconocimiento-vocales/](file:///home/thewest/proyectos/GestureFlow/pasos/paso-04-reconocimiento-vocales/) | **File**: [paso_04_vocales.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-04-reconocimiento-vocales/paso_04_vocales.py) | **Documentation**: [paso_04_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-04-reconocimiento-vocales/paso_04_doc.md)
+### [Paso 4 — Reconocimiento de Vocales (Basado en Reglas)](pasos/paso-04-reconocimiento-vocales/)
+**Folder**: [paso-04-reconocimiento-vocales/](pasos/paso-04-reconocimiento-vocales/) | **File**: [paso_04_vocales.py](pasos/paso-04-reconocimiento-vocales/paso_04_vocales.py) | **Documentation**: [paso_04_doc.md](pasos/paso-04-reconocimiento-vocales/paso_04_doc.md)
 
 Clasifica las cinco vocales en español utilizando reglas geométricas basadas en los ángulos de las articulaciones de la mano, sin modelos de red neuronal. Muestra las limitaciones de este enfoque y motiva el uso de la LSTM.
 
 ---
 
-### [Paso 5 — Recolección de Datos](file:///home/thewest/proyectos/GestureFlow/pasos/paso-05-recoleccion/)
-**Folder**: [paso-05-recoleccion/](file:///home/thewest/proyectos/GestureFlow/pasos/paso-05-recoleccion/) | **File**: [paso_05_recoleccion.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-05-recoleccion/paso_05_recoleccion.py) | **Documentation**: [paso_05_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-05-recoleccion/paso_05_doc.md)
+### [Paso 5 — Recolección de Datos](pasos/paso-05-recoleccion/)
+**Folder**: [paso-05-recoleccion/](pasos/paso-05-recoleccion/) | **File**: [paso_05_recoleccion.py](pasos/paso-05-recoleccion/paso_05_recoleccion.py) | **Documentation**: [paso_05_doc.md](pasos/paso-05-recoleccion/paso_05_doc.md)
 
 Bucle de grabación accionado por la tecla **ESPACIO** que captura 200 secuencias de 30 frames por clase de gesto y las almacena en la carpeta `gestos/` en archivos con formato `.npy` y forma `(30, 126)`.
 
 ---
 
-### [Paso 6 — Entrenamiento de Modelo LSTM](file:///home/thewest/proyectos/GestureFlow/pasos/paso-06-entrenamiento/)
-**Folder**: [paso-06-entrenamiento/](file:///home/thewest/proyectos/GestureFlow/pasos/paso-06-entrenamiento/) | **File**: [paso_06_entrenamiento.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-06-entrenamiento/paso_06_entrenamiento.py) | **Documentation**: [paso_06_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-06-entrenamiento/paso_06_doc.md)
+### [Paso 6 — Entrenamiento de Modelo LSTM](pasos/paso-06-entrenamiento/)
+**Folder**: [paso-06-entrenamiento/](pasos/paso-06-entrenamiento/) | **File**: [paso_06_entrenamiento.py](pasos/paso-06-entrenamiento/paso_06_entrenamiento.py) | **Documentation**: [paso_06_doc.md](pasos/paso-06-entrenamiento/paso_06_doc.md)
 
 Carga el dataset recolectado en archivos `.npy`, construye una red neuronal LSTM profunda en Keras, la entrena durante 100 épocas y exporta el modelo entrenado a `modelos/lstm_gestos.keras`.
 
 ---
 
-### [Paso 7 — Inferencia LSTM en Tiempo Real](file:///home/thewest/proyectos/GestureFlow/pasos/paso-07-deteccion-tiempo-real/)
-**Folder**: [paso-07-deteccion-tiempo-real/](file:///home/thewest/proyectos/GestureFlow/pasos/paso-07-deteccion-tiempo-real/) | **File**: [paso_07_deteccion.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-07-deteccion-tiempo-real/paso_07_deteccion.py) | **Documentation**: [paso_07_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-07-deteccion-tiempo-real/paso_07_doc.md)
+### [Paso 7 — Inferencia LSTM en Tiempo Real](pasos/paso-07-deteccion-tiempo-real/)
+**Folder**: [paso-07-deteccion-tiempo-real/](pasos/paso-07-deteccion-tiempo-real/) | **File**: [paso_07_deteccion.py](pasos/paso-07-deteccion-tiempo-real/paso_07_deteccion.py) | **Documentation**: [paso_07_doc.md](pasos/paso-07-deteccion-tiempo-real/paso_07_doc.md)
 
 Introduce un búfer circular de 30 frames en un hilo secundario asíncrono para ejecutar la inferencia del modelo LSTM sobre la cámara en vivo. Solo acepta predicciones si la certeza supera el 80%.
 
 ---
 
-### [Paso 8 — Control del Sistema mediante Gestos](file:///home/thewest/proyectos/GestureFlow/pasos/paso-08-control-sistema/)
-**Folder**: [paso-08-control-sistema/](file:///home/thewest/proyectos/GestureFlow/pasos/paso-08-control-sistema/) | **File**: [paso_08_control.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-08-control-sistema/paso_08_control.py) | **Documentation**: [paso_08_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-08-control-sistema/paso_08_doc.md)
+### [Paso 8 — Control del Sistema mediante Gestos](pasos/paso-08-control-sistema/)
+**Folder**: [paso-08-control-sistema/](pasos/paso-08-control-sistema/) | **File**: [paso_08_control.py](pasos/paso-08-control-sistema/paso_08_control.py) | **Documentation**: [paso_08_doc.md](pasos/paso-08-control-sistema/paso_08_doc.md)
 
 Traduce los gestos detectados en acciones del SO. Utiliza `pynput` para control genérico y `evdev` en Linux con Wayland para un control del ratón más fluido a bajo nivel:
 

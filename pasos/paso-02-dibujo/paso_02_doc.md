@@ -2,7 +2,7 @@
 
 Puente entre **cámara en vivo** (paso 1) y **detección continua** (paso 3): al pulsar **ESPACIO** congelas un frame, lo procesas con MediaPipe en modo **IMAGE** (síncrono) y dibujas el esqueleto de la mano.
 
-Para conocer en detalle los conceptos de rutas, configuración del modelo, espacio de color y dibujo de landmarks, consulta la [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+Para conocer en detalle los conceptos de rutas, configuración del modelo, espacio de color y dibujo de landmarks, consulta la [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -45,10 +45,10 @@ Para conocer en detalle los conceptos de rutas, configuración del modelo, espac
 
 | Archivo | Rol |
 |---------|-----|
-| [paso_02_dibujo.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-02-dibujo/paso_02_dibujo.py) | Script del paso |
-| [paso_02_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-02-dibujo/paso_02_doc.md) | Esta documentación |
+| [paso_02_dibujo.py](../../pasos/paso-02-dibujo/paso_02_dibujo.py) | Script del paso |
+| [paso_02_doc.md](../../pasos/paso-02-dibujo/paso_02_doc.md) | Esta documentación |
 
-**Glosario y conceptos comunes:** [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+**Glosario y conceptos comunes:** [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -87,7 +87,7 @@ flowchart TD
 
 ## 4. Importaciones y variables
 
-Para conocer la descripción y por qué se importa cada biblioteca de visión y procesamiento, consulta la [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+Para conocer la descripción y por qué se importa cada biblioteca de visión y procesamiento, consulta la [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ### Tabla de variables específicas
 
@@ -95,24 +95,24 @@ Para conocer la descripción y por qué se importa cada biblioteca de visión y 
 |----------|-----|------------------|
 | `preview` | Copia del frame para vídeo en vivo sin dibujo. | Específico de la UI local |
 | `snapshot` | Frame congelado al pulsar ESPACIO sobre el cual se realiza inferencia. | Específico de la lógica de foto-congelada |
-| `SCRIPT_DIR`, `PROJECT_ROOT`, `MODEL_PATH` | Resolución de rutas absolutas al modelo. | [REF §1.2](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#12-rutas-con-path-pathlibpath) |
-| `landmarker` | Detector de marcas de manos de MediaPipe. | [REF §3.1](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#31-carga-del-modelo-handlandmarkeroptions-y-baseoptions) |
+| `SCRIPT_DIR`, `PROJECT_ROOT`, `MODEL_PATH` | Resolución de rutas absolutas al modelo. | [REF §1.2](../../pasos/REFERENCIA_COMUN.md#12-rutas-con-path-pathlibpath) |
+| `landmarker` | Detector de marcas de manos de MediaPipe. | [REF §3.1](../../pasos/REFERENCIA_COMUN.md#31-carga-del-modelo-handlandmarkeroptions-y-baseoptions) |
 
 ---
 
 ## 5. Bloques del código
 
 ### Dibujo de manos (`dibujar_manos`)
-Dibuja el esqueleto sobre el lienzo. La conversión de landmarks a protobuf y la función interna de graficado se explican en [REF §4.1](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#41-dibujo-de-landmarks-dibujar_manos).
+Dibuja el esqueleto sobre el lienzo. La conversión de landmarks a protobuf y la función interna de graficado se explican en [REF §4.1](../../pasos/REFERENCIA_COMUN.md#41-dibujo-de-landmarks-dibujar_manos).
 
 ### HandLandmarker con modo `IMAGE`
-Configura el modelo en modo síncrono. Puedes ver la tabla comparativa de modos en [REF §3.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode).
+Configura el modelo en modo síncrono. Puedes ver la tabla comparativa de modos en [REF §3.3](../../pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode).
 
 ### Lógica de congelamiento (ESPACIO)
 - Se duplica el frame en `snapshot = frame.copy()`.
-- Se convierte a RGB y se encapsula en `mp.Image`. Ver [REF §3.2](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#32-espacio-de-color-bgr-a-rgb-mpimage).
+- Se convierte a RGB y se encapsula en `mp.Image`. Ver [REF §3.2](../../pasos/REFERENCIA_COMUN.md#32-espacio-de-color-bgr-a-rgb-mpimage).
 - Se ejecuta `landmarker.detect(mp_image)` de forma **síncrona y bloqueante**.
-- Se dibuja y se muestra `snapshot` llamando a `cv2.waitKey(0)`. Este último bloquea el flujo y actúa como una pausa en pantalla hasta presionar cualquier tecla para reanudar el bucle principal. Ver [REF §2.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#23-refresco-y-detección-de-teclado-cv2waitkey).
+- Se dibuja y se muestra `snapshot` llamando a `cv2.waitKey(0)`. Este último bloquea el flujo y actúa como una pausa en pantalla hasta presionar cualquier tecla para reanudar el bucle principal. Ver [REF §2.3](../../pasos/REFERENCIA_COMUN.md#23-refresco-y-detección-de-teclado-cv2waitkey).
 
 ---
 
@@ -146,7 +146,7 @@ python pasos/paso-02-dibujo/paso_02_dibujo.py
 
 ## 9. Errores frecuentes
 
-Para solucionar fallas del modelo ausente, problemas de foco en ventanas o errores de dibujo, consulta la **Tabla de Errores Frecuentes Unificada** en la [Sección 6 de REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
+Para solucionar fallas del modelo ausente, problemas de foco en ventanas o errores de dibujo, consulta la **Tabla de Errores Frecuentes Unificada** en la [Sección 6 de REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
 
 ---
 
@@ -157,10 +157,10 @@ Para solucionar fallas del modelo ausente, problemas de foco en ventanas o error
 - [ ] En la terminal se imprimen los mensajes correspondientes (`Manos detectadas: N` o `No se detectaron manos`).
 - [ ] La ventana y cámara se cierran correctamente al pulsar **q**.
 
-**Siguiente:** [Paso 03 — Tiempo real](file:///home/thewest/proyectos/GestureFlow/pasos/paso-03-tiempo-real/paso_03_doc.md) — detección asíncrona continua (`LIVE_STREAM`) frame a frame.
+**Siguiente:** [Paso 03 — Tiempo real](../../pasos/paso-03-tiempo-real/paso_03_doc.md) — detección asíncrona continua (`LIVE_STREAM`) frame a frame.
 
 ---
 
 ## 11. Referencia del código fuente
 
-El script completo vive en [paso_02_dibujo.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-02-dibujo/paso_02_dibujo.py).
+El script completo vive en [paso_02_dibujo.py](../../pasos/paso-02-dibujo/paso_02_dibujo.py).

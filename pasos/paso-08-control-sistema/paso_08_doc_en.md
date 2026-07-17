@@ -2,7 +2,7 @@
 
 Pipeline for **operating system control using hand gestures**: translates landmark features and rule-based pose evaluations into actual OS actions — mouse cursor movement, left click, and virtual workspace switching — across Linux, Windows, and macOS.
 
-To read about keypoint extraction and the foundational MediaPipe HandLandmarker stream feeding this step, refer to the common glossary in [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+To read about keypoint extraction and the foundational MediaPipe HandLandmarker stream feeding this step, refer to the common glossary in [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -46,9 +46,9 @@ To read about keypoint extraction and the foundational MediaPipe HandLandmarker 
 
 | File | Role |
 |------|------|
-| [paso_08_control.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-08-control-sistema/paso_08_control.py) | Step script |
-| [paso_08_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-08-control-sistema/paso_08_doc.md) | Spanish documentation |
-| [paso_08_doc_en.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-08-control-sistema/paso_08_doc_en.md) | This English documentation |
+| [paso_08_control.py](../../pasos/paso-08-control-sistema/paso_08_control.py) | Step script |
+| [paso_08_doc.md](../../pasos/paso-08-control-sistema/paso_08_doc.md) | Spanish documentation |
+| [paso_08_doc_en.md](../../pasos/paso-08-control-sistema/paso_08_doc_en.md) | This English documentation |
 
 ---
 

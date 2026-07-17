@@ -2,7 +2,7 @@
 
 Hand landmark detection **on every frame** using MediaPipe in asynchronous `LIVE_STREAM` mode, removing the need for key triggers.
 
-For detailed concepts on real-time execution, callback setups, increasing timestamps, and loop lag controls, refer to [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+For detailed concepts on real-time execution, callback setups, increasing timestamps, and loop lag controls, refer to [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -42,9 +42,9 @@ For detailed concepts on real-time execution, callback setups, increasing timest
 
 | File | Role |
 |------|------|
-| [paso_03_tiempo_real.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-03-tiempo-real/paso_03_tiempo_real.py) | Step script |
-| [paso_03_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-03-tiempo-real/paso_03_doc.md) | Spanish documentation |
-| [paso_03_doc_en.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-03-tiempo-real/paso_03_doc_en.md) | This English documentation |
+| [paso_03_tiempo_real.py](../../pasos/paso-03-tiempo-real/paso_03_tiempo_real.py) | Step script |
+| [paso_03_doc.md](../../pasos/paso-03-tiempo-real/paso_03_doc.md) | Spanish documentation |
+| [paso_03_doc_en.md](../../pasos/paso-03-tiempo-real/paso_03_doc_en.md) | This English documentation |
 
 ---
 
@@ -69,14 +69,14 @@ For detailed concepts on real-time execution, callback setups, increasing timest
 
 ## 4. Imports and Variables
 
-Refer to [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md) for details.
+Refer to [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md) for details.
 
 ### Specific Variables Table
 
 | Variable | Role | General Concept |
 |----------|------|-----------------|
-| `ultimo_resultado` | Global container for latest callback results. | [REF §3.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode) |
-| `on_result` | Callback function executed by MediaPipe. | [REF §3.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode) |
+| `ultimo_resultado` | Global container for latest callback results. | [REF §3.3](../../pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode) |
+| `on_result` | Callback function executed by MediaPipe. | [REF §3.3](../../pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode) |
 | `display` | Frame copy for skeleton rendering. | Frame buffer isolation |
 
 ---
@@ -115,7 +115,7 @@ python pasos/paso-03-tiempo-real/paso_03_tiempo_real.py
 ---
 
 ## 9. Common Errors
-Refer to Section 6 of [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
+Refer to Section 6 of [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
 
 ---
 

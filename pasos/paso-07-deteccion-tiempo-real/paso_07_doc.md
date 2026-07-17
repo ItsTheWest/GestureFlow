@@ -2,7 +2,7 @@
 
 Pipeline de **inferencia en tiempo real**: carga el modelo LSTM entrenado en el paso 06, abre la cámara, acumula los landmarks en un búfer circular de 30 frames y clasifica el gesto en curso, mostrando la etiqueta y la confianza sobre el video en vivo.
 
-Para conocer en detalle los conceptos de extracción de keypoints, modo `VIDEO` de MediaPipe, y cómo funciona la inferencia con un tensor `(1, 30, 126)`, consulta la [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+Para conocer en detalle los conceptos de extracción de keypoints, modo `VIDEO` de MediaPipe, y cómo funciona la inferencia con un tensor `(1, 30, 126)`, consulta la [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -49,11 +49,11 @@ Para conocer en detalle los conceptos de extracción de keypoints, modo `VIDEO` 
 
 | Archivo | Rol |
 |---------|-----|
-| [paso_07_deteccion.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-07-deteccion-tiempo-real/paso_07_deteccion.py) | Script principal de inferencia en tiempo real |
-| [paso_07_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-07-deteccion-tiempo-real/paso_07_doc.md) | Esta documentación |
-| [steps_detection_realtime.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-07-deteccion-tiempo-real/steps_detection_realtime.md) | Guía de implementación paso a paso |
+| [paso_07_deteccion.py](../../pasos/paso-07-deteccion-tiempo-real/paso_07_deteccion.py) | Script principal de inferencia en tiempo real |
+| [paso_07_doc.md](../../pasos/paso-07-deteccion-tiempo-real/paso_07_doc.md) | Esta documentación |
+| [steps_detection_realtime.md](../../pasos/paso-07-deteccion-tiempo-real/steps_detection_realtime.md) | Guía de implementación paso a paso |
 
-**Glosario y conceptos comunes:** [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+**Glosario y conceptos comunes:** [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -99,7 +99,7 @@ flowchart TD
 
 ## 4. Conceptos clave
 
-Para la descripción teórica de las celdas LSTM, la estructura del tensor de entrada `(1, 30, 126)` y el argumento `training=False` durante la inferencia, consulta la [Sección 5 de REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#5-entrenamiento-lstm-y-redes-neuronales).
+Para la descripción teórica de las celdas LSTM, la estructura del tensor de entrada `(1, 30, 126)` y el argumento `training=False` durante la inferencia, consulta la [Sección 5 de REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md#5-entrenamiento-lstm-y-redes-neuronales).
 
 ---
 
@@ -202,7 +202,7 @@ else:
     current_gesture = ""  # Gesto ambiguo — no se muestra
 ```
 
-Bajar el umbral aumenta la sensibilidad (más falsos positivos). Subirlo hace el sistema más conservador (más falsos negativos). Ver constante en [config.py](file:///home/thewest/proyectos/GestureFlow/config.py#L25).
+Bajar el umbral aumenta la sensibilidad (más falsos positivos). Subirlo hace el sistema más conservador (más falsos negativos). Ver constante en [config.py](../../config.py#L25).
 
 ---
 
@@ -249,7 +249,7 @@ Presiona **ESC** para cerrar la ventana de forma segura.
 
 ## 12. Errores frecuentes
 
-Para diagnosticar fallas como modelo no encontrado, timestamps no crecientes, bajo FPS por inferencia bloqueante, o la etiqueta no aparece aunque se reconoce el gesto, consulta la **Tabla de Errores Frecuentes Unificada** en la [Sección 6 de REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
+Para diagnosticar fallas como modelo no encontrado, timestamps no crecientes, bajo FPS por inferencia bloqueante, o la etiqueta no aparece aunque se reconoce el gesto, consulta la **Tabla de Errores Frecuentes Unificada** en la [Sección 6 de REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
 
 ---
 
@@ -261,4 +261,4 @@ Has completado la **Inferencia en tiempo real**: el modelo LSTM ya clasifica ges
 - **Control del sistema**: Conectar las etiquetas predichas a acciones reales del OS — mover el cursor, hacer clic y cambiar de espacio de trabajo (Paso 08).
 - **Dashboard unificado**: Integrar la detección en el panel de `main.py` seleccionando el modo *Inference* en la barra segmentada.
 
-**Siguiente:** [Paso 08 — Control del Sistema](file:///home/thewest/proyectos/GestureFlow/pasos/paso-08-control-sistema/paso_08_doc.md) — traducción de gestos a acciones del sistema operativo.
+**Siguiente:** [Paso 08 — Control del Sistema](../../pasos/paso-08-control-sistema/paso_08_doc.md) — traducción de gestos a acciones del sistema operativo.

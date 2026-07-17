@@ -2,7 +2,7 @@
 
 Pipeline for **operating system control using hand gestures**: translates landmark features and rule-based pose evaluations into actual OS actions — mouse cursor movement, left click, and virtual workspace switching — across Linux, Windows, and macOS.
 
-To read about keypoint extraction and the foundational MediaPipe HandLandmarker stream feeding this step, refer to the common glossary in [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+To read about keypoint extraction and the foundational MediaPipe HandLandmarker stream feeding this step, refer to the common glossary in [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -48,9 +48,9 @@ To read about keypoint extraction and the foundational MediaPipe HandLandmarker 
 
 | File | Purpose |
 |------|---------|
-| [paso_08_control.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-08-control-sistema/paso_08_control.py) | Core mouse/keyboard controller mappings, gesture coordinate evaluations |
-| [paso_08_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-08-control-sistema/paso_08_doc.md) | Spanish documentation file |
-| [steps_system_control.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-08-control-sistema/steps_system_control.md) | This English documentation file |
+| [paso_08_control.py](../../pasos/paso-08-control-sistema/paso_08_control.py) | Core mouse/keyboard controller mappings, gesture coordinate evaluations |
+| [paso_08_doc.md](../../pasos/paso-08-control-sistema/paso_08_doc.md) | Spanish documentation file |
+| [steps_system_control.md](../../pasos/paso-08-control-sistema/steps_system_control.md) | This English documentation file |
 
 ---
 
@@ -249,7 +249,7 @@ classDiagram
 
 ## 10. Config Constants
 
-Constants are configured in [`config.py`](file:///home/thewest/proyectos/GestureFlow/config.py):
+Constants are configured in [`config.py`](../../config.py):
 - `PINCH_THRESHOLD` (`0.06`): Euclidean distance for pinch detection.
 - `SWIPE_VELOCITY` (`0.035`): Speed threshold for swipe gestures.
 - `CURSOR_SMOOTHING` (`0.4`): Alpha coefficient for EMA smoothing.

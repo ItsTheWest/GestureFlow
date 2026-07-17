@@ -2,7 +2,7 @@
 
 Real-time **inference pipeline**: loads the trained LSTM model from step 6, captures video, buffers landmarks in a circular queue of 30 frames, and classifies gesture classes in real time.
 
-For details on keypoint extraction formats, MediaPipe `VIDEO` mode, and tensor inputs, refer to [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+For details on keypoint extraction formats, MediaPipe `VIDEO` mode, and tensor inputs, refer to [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -37,9 +37,9 @@ For details on keypoint extraction formats, MediaPipe `VIDEO` mode, and tensor i
 
 | File | Role |
 |------|------|
-| [paso_07_deteccion.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-07-deteccion-tiempo-real/paso_07_deteccion.py) | Step script |
-| [paso_07_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-07-deteccion-tiempo-real/paso_07_doc.md) | Spanish documentation |
-| [paso_07_doc_en.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-07-deteccion-tiempo-real/paso_07_doc_en.md) | This English documentation |
+| [paso_07_deteccion.py](../../pasos/paso-07-deteccion-tiempo-real/paso_07_deteccion.py) | Step script |
+| [paso_07_doc.md](../../pasos/paso-07-deteccion-tiempo-real/paso_07_doc.md) | Spanish documentation |
+| [paso_07_doc_en.md](../../pasos/paso-07-deteccion-tiempo-real/paso_07_doc_en.md) | This English documentation |
 
 ---
 

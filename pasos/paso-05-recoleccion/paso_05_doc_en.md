@@ -2,7 +2,7 @@
 
 Data collection pipeline for **model training**: opens camera, detects hands using MediaPipe in `IMAGE` mode, and stores sequences as `.npy` arrays inside folder structures.
 
-For details on keypoint extraction (126 coordinates), padding, sequences, and temporal overlays, refer to [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+For details on keypoint extraction (126 coordinates), padding, sequences, and temporal overlays, refer to [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -42,9 +42,9 @@ For details on keypoint extraction (126 coordinates), padding, sequences, and te
 
 | File | Role |
 |------|------|
-| [paso_05_recoleccion.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-05-recoleccion/paso_05_recoleccion.py) | Step script |
-| [paso_05_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-05-recoleccion/paso_05_doc.md) | Spanish documentation |
-| [paso_05_doc_en.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-05-recoleccion/paso_05_doc_en.md) | This English documentation |
+| [paso_05_recoleccion.py](../../pasos/paso-05-recoleccion/paso_05_recoleccion.py) | Step script |
+| [paso_05_doc.md](../../pasos/paso-05-recoleccion/paso_05_doc.md) | Spanish documentation |
+| [paso_05_doc_en.md](../../pasos/paso-05-recoleccion/paso_05_doc_en.md) | This English documentation |
 
 ---
 
@@ -73,9 +73,9 @@ For details on keypoint extraction (126 coordinates), padding, sequences, and te
 
 | Constant | Value | Concept | Reference |
 |----------|-------|---------|-----------|
-| `SEQUENCE_LENGTH` | `30` | Temporal frames count | [REF §4.4](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#44-formato-npy-y-secuencias-temporales) |
-| `NUM_FEATURES` | `126` | 21 points × 3 (x,y,z) × 2 hands | [REF §4.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#43-extracción-y-relleno-de-características-extract_keypoints) |
-| `SAVE_EVERY` | `15` | Window stride (50% overlap) | [REF §4.5](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#45-solapamiento-temporal-aumento-de-datos) |
+| `SEQUENCE_LENGTH` | `30` | Temporal frames count | [REF §4.4](../../pasos/REFERENCIA_COMUN.md#44-formato-npy-y-secuencias-temporales) |
+| `NUM_FEATURES` | `126` | 21 points × 3 (x,y,z) × 2 hands | [REF §4.3](../../pasos/REFERENCIA_COMUN.md#43-extracción-y-relleno-de-características-extract_keypoints) |
+| `SAVE_EVERY` | `15` | Window stride (50% overlap) | [REF §4.5](../../pasos/REFERENCIA_COMUN.md#45-solapamiento-temporal-aumento-de-datos) |
 
 ---
 
@@ -111,4 +111,4 @@ python pasos/paso-05-recoleccion/paso_05_recoleccion.py
 ---
 
 ## 9. Common Errors
-Refer to Section 6 of [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
+Refer to Section 6 of [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).

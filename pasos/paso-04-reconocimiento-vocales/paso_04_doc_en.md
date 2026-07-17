@@ -2,7 +2,7 @@
 
 Using the real-time async stream (Step 3), this step processes hand landmarks mathematically to statically classify five Spanish vowels ('A', 'E', 'I', 'O', 'U') for **both hands** independently.
 
-For details on path configuration, webcam captures, async streams, queue logic, and skeletal drawing, refer to [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+For details on path configuration, webcam captures, async streams, queue logic, and skeletal drawing, refer to [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -30,8 +30,8 @@ For details on path configuration, webcam captures, async streams, queue logic, 
 | Finger tip Euclidean distance for 'O' | Specific to this step |
 | Independent side-based temporal validation | Specific to this step |
 | Vertical layout HUD offset | Specific to this step |
-| Queue controls (`listo_para_inferir` & `ANCHO_INFERENCIA`) | [REF §3.4](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#34-control-de-flujo-de-inferencia-asíncrona) |
-| Async real-time stream (`LIVE_STREAM`) | [REF §3.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode) |
+| Queue controls (`listo_para_inferir` & `ANCHO_INFERENCIA`) | [REF §3.4](../../pasos/REFERENCIA_COMUN.md#34-control-de-flujo-de-inferencia-asíncrona) |
+| Async real-time stream (`LIVE_STREAM`) | [REF §3.3](../../pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode) |
 
 **Success Criteria:**
 - Signing a vowel displays `Validando [Vowel]...` or `Confirmada: [Vowel]` on the HUD.
@@ -44,9 +44,9 @@ For details on path configuration, webcam captures, async streams, queue logic, 
 
 | File | Role |
 |------|------|
-| [paso_04_vocales.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-04-reconocimiento-vocales/paso_04_vocales.py) | Step script |
-| [paso_04_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-04-reconocimiento-vocales/paso_04_doc.md) | Spanish documentation |
-| [paso_04_doc_en.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-04-reconocimiento-vocales/paso_04_doc_en.md) | This English documentation |
+| [paso_04_vocales.py](../../pasos/paso-04-reconocimiento-vocales/paso_04_vocales.py) | Step script |
+| [paso_04_doc.md](../../pasos/paso-04-reconocimiento-vocales/paso_04_doc.md) | Spanish documentation |
+| [paso_04_doc_en.md](../../pasos/paso-04-reconocimiento-vocales/paso_04_doc_en.md) | This English documentation |
 
 ---
 
@@ -104,7 +104,7 @@ python pasos/paso-04-reconocimiento-vocales/paso_04_vocales.py
 ---
 
 ## 8. Common Errors
-Refer to Section 6 of [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
+Refer to Section 6 of [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
 
 ---
 

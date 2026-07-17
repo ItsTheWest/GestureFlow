@@ -2,7 +2,7 @@
 
 Opens the webcam, displays video in **color** with a **mirror** effect, frame counter, and console logs. Uses OpenCV only; no MediaPipe.
 
-For detail on camera capture concepts, horizontal flipping, window refreshing, and resource releasing, refer to [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+For detail on camera capture concepts, horizontal flipping, window refreshing, and resource releasing, refer to [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -45,9 +45,9 @@ For detail on camera capture concepts, horizontal flipping, window refreshing, a
 
 | File | Role |
 |------|------|
-| [paso_01_camara.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-01-camara/paso_01_camara.py) | Step script |
-| [paso_01_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-01-camara/paso_01_doc.md) | Spanish documentation |
-| [paso_01_doc_en.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-01-camara/paso_01_doc_en.md) | This English documentation |
+| [paso_01_camara.py](../../pasos/paso-01-camara/paso_01_camara.py) | Step script |
+| [paso_01_doc.md](../../pasos/paso-01-camara/paso_01_doc.md) | Spanish documentation |
+| [paso_01_doc_en.md](../../pasos/paso-01-camara/paso_01_doc_en.md) | This English documentation |
 
 ---
 
@@ -82,9 +82,9 @@ OpenCV: capture, mirror flipping, text rendering, display, and resource releasin
 
 | Name | Role | General Concept |
 |------|------|-----------------|
-| `cap` | Camera capture object. | [REF §2.1](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#21-captura-de-cámara-cv2videocapture) |
-| `ret` | `True` if `read()` returned a valid frame. | [REF §2.1](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#21-captura-de-cámara-cv2videocapture) |
-| `frame` | BGR image `(height, width, 3)`. | [REF §2.1](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#21-captura-de-cámara-cv2videocapture) |
+| `cap` | Camera capture object. | [REF §2.1](../../pasos/REFERENCIA_COMUN.md#21-captura-de-cámara-cv2videocapture) |
+| `ret` | `True` if `read()` returned a valid frame. | [REF §2.1](../../pasos/REFERENCIA_COMUN.md#21-captura-de-cámara-cv2videocapture) |
+| `frame` | BGR image `(height, width, 3)`. | [REF §2.1](../../pasos/REFERENCIA_COMUN.md#21-captura-de-cámara-cv2videocapture) |
 | `frame_count` | Successfully read frames count. | Specific to this step |
 | `first_frame_logged` | Prevents repeating details for the first frame. | Local flow control |
 
@@ -107,7 +107,7 @@ Ends the loop when `q` is pressed.
 ---
 
 ## 6. OpenCV, Keys and Window
-Refer to Section 2 of [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#2-opencv-y-captura-de-vídeo) for functions details.
+Refer to Section 2 of [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md#2-opencv-y-captura-de-vídeo) for functions details.
 
 ---
 
@@ -129,7 +129,7 @@ python pasos/paso-01-camara/paso_01_camara.py
 ---
 
 ## 9. Common Errors
-Refer to Section 6 of [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
+Refer to Section 6 of [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
 
 ---
 

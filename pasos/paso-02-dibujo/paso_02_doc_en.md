@@ -2,7 +2,7 @@
 
 Bridge between **live camera** (step 1) and **continuous detection** (step 3): pressing **SPACE** freezes a frame, processes it with MediaPipe in **IMAGE** (synchronous) mode, and draws the hand landmark skeleton.
 
-For detail on path resolutions, model setup, color spaces, and landmarks drawing, refer to [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+For detail on path resolutions, model setup, color spaces, and landmarks drawing, refer to [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -45,9 +45,9 @@ For detail on path resolutions, model setup, color spaces, and landmarks drawing
 
 | File | Role |
 |------|------|
-| [paso_02_dibujo.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-02-dibujo/paso_02_dibujo.py) | Step script |
-| [paso_02_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-02-dibujo/paso_02_doc.md) | Spanish documentation |
-| [paso_02_doc_en.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-02-dibujo/paso_02_doc_en.md) | This English documentation |
+| [paso_02_dibujo.py](../../pasos/paso-02-dibujo/paso_02_dibujo.py) | Step script |
+| [paso_02_doc.md](../../pasos/paso-02-dibujo/paso_02_doc.md) | Spanish documentation |
+| [paso_02_doc_en.md](../../pasos/paso-02-dibujo/paso_02_doc_en.md) | This English documentation |
 
 ---
 
@@ -75,7 +75,7 @@ For detail on path resolutions, model setup, color spaces, and landmarks drawing
 
 ## 4. Imports and Variables
 
-Refer to [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md) for details.
+Refer to [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md) for details.
 
 ### Specific Variables Table
 
@@ -83,7 +83,7 @@ Refer to [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/
 |----------|------|-----------------|
 | `preview` | Frame copy for clean live preview. | Local UI |
 | `snapshot` | Frozen frame copy used for inference. | Freeze frame logic |
-| `landmarker` | MediaPipe hand landmark detector. | [REF §3.1](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#31-carga-del-modelo-handlandmarkeroptions-y-baseoptions) |
+| `landmarker` | MediaPipe hand landmark detector. | [REF §3.1](../../pasos/REFERENCIA_COMUN.md#31-carga-del-modelo-handlandmarkeroptions-y-baseoptions) |
 
 ---
 
@@ -124,7 +124,7 @@ python pasos/paso-02-dibujo/paso_02_dibujo.py
 ---
 
 ## 9. Common Errors
-Refer to Section 6 of [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
+Refer to Section 6 of [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
 
 ---
 

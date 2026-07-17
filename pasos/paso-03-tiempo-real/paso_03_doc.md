@@ -2,7 +2,7 @@
 
 Detección de manos **en cada frame** con MediaPipe en modo `LIVE_STREAM` de forma asíncrona, eliminando la necesidad de presionar ESPACIO.
 
-Para conocer en detalle los conceptos de ejecución en tiempo real, callbacks, timestamps crecientes y el control de flujo para evitar colas de fotogramas, consulta la [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+Para conocer en detalle los conceptos de ejecución en tiempo real, callbacks, timestamps crecientes y el control de flujo para evitar colas de fotogramas, consulta la [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -43,10 +43,10 @@ Para conocer en detalle los conceptos de ejecución en tiempo real, callbacks, t
 
 | Archivo | Rol |
 |---------|-----|
-| [paso_03_tiempo_real.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-03-tiempo-real/paso_03_tiempo_real.py) | Script final de la ruta básica `pasos/` |
-| [paso_03_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-03-tiempo-real/paso_03_doc.md) | Esta documentación |
+| [paso_03_tiempo_real.py](../../pasos/paso-03-tiempo-real/paso_03_tiempo_real.py) | Script final de la ruta básica `pasos/` |
+| [paso_03_doc.md](../../pasos/paso-03-tiempo-real/paso_03_doc.md) | Esta documentación |
 
-**Glosario y conceptos comunes:** [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+**Glosario y conceptos comunes:** [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -81,14 +81,14 @@ flowchart LR
 
 ## 4. Importaciones y variables
 
-Para conocer las dependencias comunes y su rol conceptual en el procesamiento de landmarks, consulta la [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+Para conocer las dependencias comunes y su rol conceptual en el procesamiento de landmarks, consulta la [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ### Tabla de variables específicas
 
 | Variable | Rol | Concepto General |
 |----------|-----|------------------|
-| `ultimo_resultado` | Almacena de forma global la última inferencia entregada por el callback. | [REF §3.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode) |
-| `on_result` | Función callback llamada automáticamente por MediaPipe al terminar una detección. | [REF §3.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode) |
+| `ultimo_resultado` | Almacena de forma global la última inferencia entregada por el callback. | [REF §3.3](../../pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode) |
+| `on_result` | Función callback llamada automáticamente por MediaPipe al terminar una detección. | [REF §3.3](../../pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode) |
 | `frame_index` | Contador secuencial utilizado en este paso para calcular el timestamp. | Control temporal local |
 | `display` | Copia de visualización sobre la cual se dibujan las marcas. | Aislamiento del buffer local |
 
@@ -97,23 +97,23 @@ Para conocer las dependencias comunes y su rol conceptual en el procesamiento de
 ## 5. Bloques del código
 
 ### Callback `on_result`
-Guarda de forma asíncrona los resultados en `ultimo_resultado`. Dado que la inferencia corre en un hilo separado de CPU, dibujamos el último resultado disponible sobre el frame actual en pantalla. Ver detalle de esta arquitectura en [REF §3.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode).
+Guarda de forma asíncrona los resultados en `ultimo_resultado`. Dado que la inferencia corre en un hilo separado de CPU, dibujamos el último resultado disponible sobre el frame actual en pantalla. Ver detalle de esta arquitectura en [REF §3.3](../../pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode).
 
 ### Inferencia Asíncrona (`detect_async`)
-Convierte a RGB y empaqueta en `mp.Image`. Ver [REF §3.2](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#32-espacio-de-color-bgr-a-rgb-mpimage). Llama a `detect_async` pasando un timestamp estrictamente creciente. Ver explicación en [REF §3.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode).
+Convierte a RGB y empaqueta en `mp.Image`. Ver [REF §3.2](../../pasos/REFERENCIA_COMUN.md#32-espacio-de-color-bgr-a-rgb-mpimage). Llama a `detect_async` pasando un timestamp estrictamente creciente. Ver explicación en [REF §3.3](../../pasos/REFERENCIA_COMUN.md#33-modos-de-inferencia-runningmode).
 
 ### Control de colas y rendimiento (Evitar lag)
-Aunque en este script inicial se envía inferencia en cada iteración del bucle, en scripts interactivos avanzados se utilizan variables como `listo_para_inferir` y técnicas de redimensionamiento de imagen (`ANCHO_INFERENCIA`) para evitar retrasos acumulados. Ver detalles de optimización en [REF §3.4](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#34-control-de-flujo-de-inferencia-asíncrona).
+Aunque en este script inicial se envía inferencia en cada iteración del bucle, en scripts interactivos avanzados se utilizan variables como `listo_para_inferir` y técnicas de redimensionamiento de imagen (`ANCHO_INFERENCIA`) para evitar retrasos acumulados. Ver detalles de optimización en [REF §3.4](../../pasos/REFERENCIA_COMUN.md#34-control-de-flujo-de-inferencia-asíncrona).
 
 ### Dibujo de Landmarks (`dibujar_manos`)
-Pinta in-place sobre `display`. Ver explicación de conversión a Protobuf en [REF §4.1](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#41-dibujo-de-landmarks-dibujar_manos).
+Pinta in-place sobre `display`. Ver explicación de conversión a Protobuf en [REF §4.1](../../pasos/REFERENCIA_COMUN.md#41-dibujo-de-landmarks-dibujar_manos).
 
 ---
 
 ## 6. OpenCV, teclas y ventana
 
 - **Q**: Termina la ejecución y limpia todos los recursos de cámara y visualización.
-- **cv2.waitKey(1)**: Es fundamental para garantizar que el bucle de vídeo sea fluido a ~30 FPS sin bloquear la CPU. Ver [REF §2.3](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#23-refresco-y-detección-de-teclado-cv2waitkey).
+- **cv2.waitKey(1)**: Es fundamental para garantizar que el bucle de vídeo sea fluido a ~30 FPS sin bloquear la CPU. Ver [REF §2.3](../../pasos/REFERENCIA_COMUN.md#23-refresco-y-detección-de-teclado-cv2waitkey).
 
 ---
 
@@ -138,7 +138,7 @@ python pasos/paso-03-tiempo-real/paso_03_tiempo_real.py
 
 ## 9. Errores frecuentes
 
-Si experimentas retardo acumulado, parpadeos en el dibujo o fallas al cerrar la ventana, consulta la **Tabla de Errores Frecuentes Unificada** en la [Sección 6 de REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
+Si experimentas retardo acumulado, parpadeos en el dibujo o fallas al cerrar la ventana, consulta la **Tabla de Errores Frecuentes Unificada** en la [Sección 6 de REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
 
 ---
 
@@ -157,4 +157,4 @@ Has completado la ruta inicial de visión interactiva:
 
 ## 11. Referencia del código fuente
 
-El script completo vive en [paso_03_tiempo_real.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-03-tiempo-real/paso_03_tiempo_real.py).
+El script completo vive en [paso_03_tiempo_real.py](../../pasos/paso-03-tiempo-real/paso_03_tiempo_real.py).

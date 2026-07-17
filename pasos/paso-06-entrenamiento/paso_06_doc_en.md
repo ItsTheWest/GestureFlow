@@ -2,7 +2,7 @@
 
 Final training step: trains a stacked **LSTM** neural network using temporal sequence data collected in step 5.
 
-For details on recurrent cells, input tensor shapes, labels encoding, and optimizer architectures, refer to [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+For details on recurrent cells, input tensor shapes, labels encoding, and optimizer architectures, refer to [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -40,9 +40,9 @@ For details on recurrent cells, input tensor shapes, labels encoding, and optimi
 
 | File | Role |
 |------|------|
-| [paso_06_entrenamiento.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-06-entrenamiento/paso_06_entrenamiento.py) | Step script |
-| [paso_06_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-06-entrenamiento/paso_06_doc.md) | Spanish documentation |
-| [paso_06_doc_en.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-06-entrenamiento/paso_06_doc_en.md) | This English documentation |
+| [paso_06_entrenamiento.py](../../pasos/paso-06-entrenamiento/paso_06_entrenamiento.py) | Step script |
+| [paso_06_doc.md](../../pasos/paso-06-entrenamiento/paso_06_doc.md) | Spanish documentation |
+| [paso_06_doc_en.md](../../pasos/paso-06-entrenamiento/paso_06_doc_en.md) | This English documentation |
 
 ---
 
@@ -94,4 +94,4 @@ python pasos/paso-06-entrenamiento/paso_06_entrenamiento.py
 ---
 
 ## 7. Common Errors
-Refer to Section 6 of [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).
+Refer to Section 6 of [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md#6-tabla-de-errores-frecuentes-unificada).

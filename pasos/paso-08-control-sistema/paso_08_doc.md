@@ -2,7 +2,7 @@
 
 Pipeline de **control del sistema operativo mediante gestos**: traduce las etiquetas predichas por el LSTM en acciones reales del OS — movimiento del cursor, clic izquierdo y cambio de espacio de trabajo virtual — de forma multiplataforma.
 
-Para conocer en detalle los conceptos de extracción de keypoints y el flujo de MediaPipe que alimenta este paso, consulta la [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+Para conocer en detalle los conceptos de extracción de keypoints y el flujo de MediaPipe que alimenta este paso, consulta la [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -48,10 +48,10 @@ Para conocer en detalle los conceptos de extracción de keypoints y el flujo de 
 
 | Archivo | Rol |
 |---------|-----|
-| [paso_08_control.py](file:///home/thewest/proyectos/GestureFlow/pasos/paso-08-control-sistema/paso_08_control.py) | Módulo principal: controladores de ratón y teclado, lógica de gestos |
-| [paso_08_doc.md](file:///home/thewest/proyectos/GestureFlow/pasos/paso-08-control-sistema/paso_08_doc.md) | Esta documentación |
+| [paso_08_control.py](../../pasos/paso-08-control-sistema/paso_08_control.py) | Módulo principal: controladores de ratón y teclado, lógica de gestos |
+| [paso_08_doc.md](../../pasos/paso-08-control-sistema/paso_08_doc.md) | Esta documentación |
 
-**Glosario y conceptos comunes:** [REFERENCIA_COMUN.md](file:///home/thewest/proyectos/GestureFlow/pasos/REFERENCIA_COMUN.md).
+**Glosario y conceptos comunes:** [REFERENCIA_COMUN.md](../../pasos/REFERENCIA_COMUN.md).
 
 ---
 
@@ -271,7 +271,7 @@ Las funciones de fábrica `build_mouse_controller()` y `build_workspace_switcher
 
 ## 10. Constantes de configuración
 
-Todas las constantes se definen en [`config.py`](file:///home/thewest/proyectos/GestureFlow/config.py):
+Todas las constantes se definen en [`config.py`](../../config.py):
 
 | Constante | Valor | Significado |
 |-----------|-------|-------------|
@@ -328,4 +328,4 @@ Paso 01 (cámara) → 02 (landmarks) → 03 (LIVE_STREAM)
 - Exportar el modelo a TFLite para reducir la latencia de inferencia.
 - Integrar reconocimiento de dos manos simultáneas para gestos más ricos.
 
-**Anterior:** [Paso 07 — Detección en Tiempo Real](file:///home/thewest/proyectos/GestureFlow/pasos/paso-07-deteccion-tiempo-real/paso_07_doc.md).
+**Anterior:** [Paso 07 — Detección en Tiempo Real](../../pasos/paso-07-deteccion-tiempo-real/paso_07_doc.md).
