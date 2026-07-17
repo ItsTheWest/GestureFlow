@@ -44,6 +44,19 @@ GestureFlow is a structured learning project that walks through the full Machine
 
 The final result is a unified **CustomTkinter dashboard** (`main.py`) that integrates steps 4–8 into a single dark-themed GUI with an embedded live camera viewport.
 
+### Core Architecture Components
+
+#### MediaPipe HandLandmarker
+The **MediaPipe HandLandmarker** solution identifies 21 key hand joints (landmarks) in 3D space from a video frame. It consists of a palm detection model to locate hands, and a hand landmark model that maps coordinates. In GestureFlow, we extract these landmarks and normalize them relative to the wrist landmark (index 0) to obtain features invariant to hands translation. For two hands, this produces 126 coordinate values (21 points × 3 coordinates (x, y, z) × 2 hands) per frame.
+
+#### Long Short-Term Memory (LSTM)
+A **Long Short-Term Memory (LSTM)** network is a type of recurrent neural network (RNN) capable of learning order dependence in sequence prediction problems. LSTMs contain feedback connections and specialized gates (forget, input, and output gates) to retain or discard information over long time horizons. In GestureFlow, the model processes a temporal sequence of 30 frames (tensor shape `(30, 126)`) to accurately classify dynamic hand gestures over time.
+
+#### Landmark Point Map
+The following reference diagram maps the 21 indices returned by the MediaPipe HandLandmarker:
+
+![MediaPipe Hand Landmarks Diagram](assets/hand-landmarks.png)
+
 ---
 
 ## Project Structure
